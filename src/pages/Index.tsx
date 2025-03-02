@@ -20,59 +20,61 @@ const assetDistributionData = [
   { name: 'Furniture', value: 984, color: '#ef4444' },
 ];
 
+// Updated station list with the specified stations
 const stations = [
-  { id: '1', name: 'Terminal 1', assetsCount: 1245, utilization: 78, status: 'operational', location: 'Main Building' },
-  { id: '2', name: 'Terminal 2', assetsCount: 983, utilization: 65, status: 'operational', location: 'East Wing' },
-  { id: '3', name: 'Terminal 3', assetsCount: 1478, utilization: 85, status: 'operational', location: 'North Wing' },
-  { id: '4', name: 'Cargo Terminal', assetsCount: 742, utilization: 92, status: 'issue', location: 'South Wing' },
-  { id: '5', name: 'Maintenance Hub', assetsCount: 389, utilization: 54, status: 'maintenance', location: 'West Wing' },
+  { id: '1', name: 'HQ', assetsCount: 1245, utilization: 78, status: 'operational' as const, location: 'Main Campus' },
+  { id: '2', name: 'KKIA', assetsCount: 983, utilization: 65, status: 'operational' as const, location: 'East Wing' },
+  { id: '3', name: 'SMKIA', assetsCount: 1478, utilization: 85, status: 'operational' as const, location: 'North Wing' },
+  { id: '4', name: 'HMNIA', assetsCount: 742, utilization: 92, status: 'issue' as const, location: 'South Wing' },
+  { id: '5', name: 'MIA', assetsCount: 389, utilization: 54, status: 'maintenance' as const, location: 'West Wing' },
 ];
 
+// Updated activities with proper type annotations
 const activities = [
   {
     id: '1',
     user: { name: 'Marcus Chen', initials: 'MC' },
     action: 'transferred',
-    target: '5 baggage scanners to Terminal 2',
+    target: 'laptops to KKIA',
     timestamp: '10 minutes ago',
-    station: 'Terminal 1',
-    type: 'transfer'
+    station: 'HQ',
+    type: 'transfer' as const
   },
   {
     id: '2',
     user: { name: 'Sarah Johnson', initials: 'SJ' },
     action: 'marked',
-    target: 'security cameras for maintenance',
+    target: 'printers for maintenance',
     timestamp: '45 minutes ago',
-    station: 'Terminal 3',
-    type: 'maintenance'
+    station: 'SMKIA',
+    type: 'maintenance' as const
   },
   {
     id: '3',
     user: { name: 'David Wong', initials: 'DW' },
     action: 'added',
-    target: '12 new information kiosks to inventory',
+    target: '12 new desktops to inventory',
     timestamp: '2 hours ago',
-    station: 'Terminal 2',
-    type: 'create'
+    station: 'KKIA',
+    type: 'create' as const
   },
   {
     id: '4',
     user: { name: 'Lisa Park', initials: 'LP' },
     action: 'updated',
-    target: 'vehicle maintenance schedule',
+    target: 'contract management records',
     timestamp: '5 hours ago',
-    station: 'Cargo Terminal',
-    type: 'update'
+    station: 'HMNIA',
+    type: 'update' as const
   },
   {
     id: '5',
     user: { name: 'Michael Torres', initials: 'MT' },
     action: 'deleted',
-    target: 'obsolete signage from inventory',
+    target: 'obsolete laptop from inventory',
     timestamp: '1 day ago',
-    station: 'Terminal 1',
-    type: 'delete'
+    station: 'MIA',
+    type: 'delete' as const
   },
 ];
 
@@ -116,9 +118,11 @@ const Index = () => {
             <Tabs defaultValue="all">
               <TabsList className="h-9">
                 <TabsTrigger value="all" className="text-xs">All Stations</TabsTrigger>
-                <TabsTrigger value="terminal1" className="text-xs">Terminal 1</TabsTrigger>
-                <TabsTrigger value="terminal2" className="text-xs">Terminal 2</TabsTrigger>
-                <TabsTrigger value="terminal3" className="text-xs">Terminal 3</TabsTrigger>
+                <TabsTrigger value="hq" className="text-xs">HQ</TabsTrigger>
+                <TabsTrigger value="kkia" className="text-xs">KKIA</TabsTrigger>
+                <TabsTrigger value="smkia" className="text-xs">SMKIA</TabsTrigger>
+                <TabsTrigger value="hmnia" className="text-xs">HMNIA</TabsTrigger>
+                <TabsTrigger value="mia" className="text-xs">MIA</TabsTrigger>
               </TabsList>
             </Tabs>
             <Button>Generate Report</Button>
