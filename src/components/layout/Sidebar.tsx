@@ -1,3 +1,4 @@
+
 import {
   BarChart3,
   Home,
@@ -34,7 +35,9 @@ export function Sidebar({ className, navItems, ...props }: SidebarProps) {
               <details key={item.title} className="group [&_summary::-webkit-details-marker]:hidden">
                 <summary className="flex cursor-pointer items-center space-x-3.5 py-2 pl-4 pr-2 text-sm font-medium rounded-md hover:bg-secondary">
                   {item.icon && (
-                    <item.icon className="h-4 w-4 opacity-70 group-hover:opacity-100" />
+                    <span className="h-4 w-4 opacity-70 group-hover:opacity-100">
+                      {item.icon}
+                    </span>
                   )}
                   <span>{item.title}</span>
                 </summary>
