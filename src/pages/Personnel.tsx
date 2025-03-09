@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { 
   Table, 
@@ -18,41 +18,118 @@ import {
   CardTitle 
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, UserPlus, FileEdit, Trash2 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { Search, UserPlus, FileEdit, Trash2, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { PersonnelDialog } from '@/components/personnel/PersonnelDialog';
 
-// Sample personnel data
-const personnelData = [
-  { id: 1, name: "John Doe", department: "IT", designation: "IT Manager", email: "john.doe@example.com", phone: "+1234567890", station: "Head Office", joinDate: "2022-05-15", status: "Active" },
-  { id: 2, name: "Jane Smith", department: "Finance", designation: "Financial Analyst", email: "jane.smith@example.com", phone: "+1234567891", station: "KKIA", joinDate: "2022-11-10", status: "Active" },
-  { id: 3, name: "Michael Brown", department: "HR", designation: "HR Director", email: "michael.brown@example.com", phone: "+1234567892", station: "Head Office", joinDate: "2023-01-25", status: "Active" },
-  { id: 4, name: "Sarah Wilson", department: "Marketing", designation: "Marketing Manager", email: "sarah.wilson@example.com", phone: "+1234567893", station: "HMNIA", joinDate: "2022-12-11", status: "On Leave" },
-  { id: 5, name: "David Lee", department: "Operations", designation: "Operations Director", email: "david.lee@example.com", phone: "+1234567894", station: "SMKIA", joinDate: "2023-03-10", status: "Active" },
-  { id: 6, name: "Emma Davis", department: "Marketing", designation: "Content Specialist", email: "emma.davis@example.com", phone: "+1234567895", station: "MIA", joinDate: "2022-09-25", status: "Inactive" },
-  { id: 7, name: "Robert Chen", department: "Finance", designation: "Procurement Officer", email: "robert.chen@example.com", phone: "+1234567896", station: "Head Office", joinDate: "2023-07-21", status: "Active" },
-  { id: 8, name: "Tom Harris", department: "Finance", designation: "Accountant", email: "tom.harris@example.com", phone: "+1234567897", station: "KKIA", joinDate: "2021-12-05", status: "Active" },
-  { id: 9, name: "Alice Johnson", department: "Sales", designation: "Sales Representative", email: "alice.johnson@example.com", phone: "+1234567898", station: "HMNIA", joinDate: "2023-04-15", status: "Active" },
-  { id: 10, name: "William Zhang", department: "IT", designation: "Network Administrator", email: "william.zhang@example.com", phone: "+1234567899", station: "Head Office", joinDate: "2023-02-10", status: "Active" },
-];
+interface Personnel {
+  id: string;
+  full_name: string;
+  department: string;
+  designation: string;
+  email: string;
+  phone: string;
+  station: string;
+  join_date: string;
+  status: string;
+}
 
 const Personnel = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredPersonnel, setFilteredPersonnel] = useState(personnelData);
+  const [personnel, setPersonnel] = useState<Personnel[]>([]);
+  const [filteredPersonnel, setFilteredPersonnel] = useState<Personnel[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedPersonnel, setSelectedPersonnel] = useState<Personnel | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchPersonnel();
+  }, []);
+
+  const fetchPersonnel = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+      
+      if (error) throw error;
+      
+      setPersonnel(data || []);
+      setFilteredPersonnel(data || []);
+    } catch (error) {
+      console.error('Error fetching personnel:', error);
+      toast({
+        title: "Error",
+        description: "Could not load personnel data",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.toLowerCase();
     setSearchTerm(value);
     
     if (value.trim() === "") {
-      setFilteredPersonnel(personnelData);
+      setFilteredPersonnel(personnel);
     } else {
-      const filtered = personnelData.filter(person => 
-        person.name.toLowerCase().includes(value) ||
-        person.department.toLowerCase().includes(value) ||
-        person.designation.toLowerCase().includes(value) ||
-        person.email.toLowerCase().includes(value) ||
-        person.station.toLowerCase().includes(value)
+      const filtered = personnel.filter(person => 
+        (person.full_name || '').toLowerCase().includes(value) ||
+        (person.department || '').toLowerCase().includes(value) ||
+        (person.designation || '').toLowerCase().includes(value) ||
+        (person.email || '').toLowerCase().includes(value) ||
+        (person.station || '').toLowerCase().includes(value)
       );
       setFilteredPersonnel(filtered);
+    }
+  };
+
+  const handleAddClick = () => {
+    setSelectedPersonnel(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditClick = (person: Personnel) => {
+    setSelectedPersonnel(person);
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteClick = async (id: string) => {
+    if (window.confirm("Are you sure you want to delete this personnel record?")) {
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', id);
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Personnel deleted successfully",
+        });
+        
+        fetchPersonnel();
+      } catch (error) {
+        console.error('Error deleting personnel:', error);
+        toast({
+          title: "Error",
+          description: "Could not delete personnel",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handleDialogClose = (refreshData: boolean) => {
+    setIsDialogOpen(false);
+    if (refreshData) {
+      fetchPersonnel();
     }
   };
 
@@ -61,7 +138,7 @@ const Personnel = () => {
       <div className="animate-fadeIn space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold tracking-tight">Personnel Management</h1>
-          <Button className="flex gap-2 items-center">
+          <Button className="flex gap-2 items-center" onClick={handleAddClick}>
             <UserPlus size={16} />
             <span>Add Personnel</span>
           </Button>
@@ -97,29 +174,43 @@ const Personnel = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPersonnel.length > 0 ? (
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-24 text-center">
+                        <div className="flex justify-center items-center">
+                          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredPersonnel.length > 0 ? (
                     filteredPersonnel.map((person) => (
                       <TableRow key={person.id}>
-                        <TableCell className="font-medium">{person.name}</TableCell>
-                        <TableCell>{person.department}</TableCell>
-                        <TableCell>{person.designation}</TableCell>
-                        <TableCell>{person.station}</TableCell>
-                        <TableCell>{person.email}</TableCell>
+                        <TableCell className="font-medium">{person.full_name || 'N/A'}</TableCell>
+                        <TableCell>{person.department || 'N/A'}</TableCell>
+                        <TableCell>{person.designation || 'N/A'}</TableCell>
+                        <TableCell>{person.station || 'N/A'}</TableCell>
+                        <TableCell>{person.email || 'N/A'}</TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             person.status === 'Active' ? 'bg-green-100 text-green-800' :
                             person.status === 'On Leave' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
-                            {person.status}
+                            {person.status || 'Inactive'}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" title="Edit">
+                            <Button variant="ghost" size="icon" title="Edit" onClick={() => handleEditClick(person)}>
                               <FileEdit className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" title="Delete" className="text-destructive hover:text-destructive/80 hover:bg-destructive/10">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              title="Delete" 
+                              className="text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                              onClick={() => handleDeleteClick(person.id)}
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -139,6 +230,14 @@ const Personnel = () => {
           </CardContent>
         </Card>
       </div>
+
+      {isDialogOpen && (
+        <PersonnelDialog 
+          isOpen={isDialogOpen} 
+          onClose={handleDialogClose}
+          personnel={selectedPersonnel}
+        />
+      )}
     </Layout>
   );
 };
