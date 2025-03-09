@@ -7,12 +7,7 @@ import {
   CardHeader, 
   CardTitle 
 } from '@/components/ui/card';
-
-interface AssetCategory {
-  name: string;
-  value: number;
-  color: string;
-}
+import { AssetCategory } from './types';
 
 interface AssetDistributionProps {
   data: AssetCategory[];

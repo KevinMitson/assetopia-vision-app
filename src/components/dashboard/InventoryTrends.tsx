@@ -13,18 +13,12 @@ import {
   TabsList, 
   TabsTrigger 
 } from '@/components/ui/tabs';
-
-interface DataPoint {
-  date: string;
-  acquisitions: number;
-  disposals: number;
-  transfers: number;
-}
+import { ChartDataPoint } from './types';
 
 interface InventoryTrendsProps {
-  dailyData: DataPoint[];
-  weeklyData: DataPoint[];
-  monthlyData: DataPoint[];
+  dailyData: ChartDataPoint[];
+  weeklyData: ChartDataPoint[];
+  monthlyData: ChartDataPoint[];
 }
 
 export function InventoryTrends({ dailyData, weeklyData, monthlyData }: InventoryTrendsProps) {
@@ -56,7 +50,7 @@ export function InventoryTrends({ dailyData, weeklyData, monthlyData }: Inventor
   );
 }
 
-function ChartContent({ data }: { data: DataPoint[] }) {
+function ChartContent({ data }: { data: ChartDataPoint[] }) {
   return (
     <div className="h-[300px]">
       <ResponsiveContainer width="100%" height="100%">

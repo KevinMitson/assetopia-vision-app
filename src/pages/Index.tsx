@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -6,11 +5,13 @@ import { ActivityLog } from '@/components/dashboard/ActivityLog';
 import { StationOverview } from '@/components/dashboard/StationOverview';
 import { AssetDistribution } from '@/components/dashboard/AssetDistribution';
 import { InventoryTrends } from '@/components/dashboard/InventoryTrends';
-import { Package, AlertTriangle, Truck, Users, Check, Wrench, Activity } from 'lucide-react';
+import { ReportDialog } from '@/components/dashboard/ReportDialog';
+import { Package, AlertTriangle, Truck, Users, Check, Wrench, Activity, FileSpreadsheet } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ActivityItem, Station, AssetCategory, StationStats, ChartDataPoint } from '@/components/dashboard/types';
 
 // Mock data for each station
 const stationAssetDistributions = {
@@ -59,16 +60,16 @@ const stationAssetDistributions = {
 };
 
 // Updated station list with the specified stations
-const stations = [
-  { id: '1', name: 'HQ', assetsCount: 1245, utilization: 78, status: 'operational' as const, location: 'Main Campus' },
-  { id: '2', name: 'KKIA', assetsCount: 983, utilization: 65, status: 'operational' as const, location: 'East Wing' },
-  { id: '3', name: 'SMKIA', assetsCount: 1478, utilization: 85, status: 'operational' as const, location: 'North Wing' },
-  { id: '4', name: 'HMNIA', assetsCount: 742, utilization: 92, status: 'issue' as const, location: 'South Wing' },
-  { id: '5', name: 'MIA', assetsCount: 389, utilization: 54, status: 'maintenance' as const, location: 'West Wing' },
+const stations: Station[] = [
+  { id: '1', name: 'HQ', assetsCount: 1245, utilization: 78, status: 'operational', location: 'Main Campus' },
+  { id: '2', name: 'KKIA', assetsCount: 983, utilization: 65, status: 'operational', location: 'East Wing' },
+  { id: '3', name: 'SMKIA', assetsCount: 1478, utilization: 85, status: 'operational', location: 'North Wing' },
+  { id: '4', name: 'HMNIA', assetsCount: 742, utilization: 92, status: 'issue', location: 'South Wing' },
+  { id: '5', name: 'MIA', assetsCount: 389, utilization: 54, status: 'maintenance', location: 'West Wing' },
 ];
 
 // Activities data for each station
-const stationActivities = {
+const stationActivities: { [key: string]: ActivityItem[] } = {
   all: [
     {
       id: '1',
@@ -77,7 +78,7 @@ const stationActivities = {
       target: 'laptops to KKIA',
       timestamp: '10 minutes ago',
       station: 'HQ',
-      type: 'transfer' as const
+      type: 'transfer'
     },
     {
       id: '2',
@@ -86,7 +87,7 @@ const stationActivities = {
       target: 'printers for maintenance',
       timestamp: '45 minutes ago',
       station: 'SMKIA',
-      type: 'maintenance' as const
+      type: 'maintenance'
     },
     {
       id: '3',
@@ -95,7 +96,7 @@ const stationActivities = {
       target: '12 new desktops to inventory',
       timestamp: '2 hours ago',
       station: 'KKIA',
-      type: 'create' as const
+      type: 'create'
     },
     {
       id: '4',
@@ -104,7 +105,7 @@ const stationActivities = {
       target: 'contract management records',
       timestamp: '5 hours ago',
       station: 'HMNIA',
-      type: 'update' as const
+      type: 'update'
     },
     {
       id: '5',
@@ -113,7 +114,7 @@ const stationActivities = {
       target: 'obsolete laptop from inventory',
       timestamp: '1 day ago',
       station: 'MIA',
-      type: 'delete' as const
+      type: 'delete'
     },
   ],
   hq: [
@@ -124,7 +125,7 @@ const stationActivities = {
       target: 'laptops to KKIA',
       timestamp: '10 minutes ago',
       station: 'HQ',
-      type: 'transfer' as const
+      type: 'transfer'
     },
     {
       id: '6',
@@ -133,7 +134,7 @@ const stationActivities = {
       target: 'server room equipment',
       timestamp: '3 days ago',
       station: 'HQ',
-      type: 'update' as const
+      type: 'update'
     },
   ],
   kkia: [
@@ -144,7 +145,7 @@ const stationActivities = {
       target: '12 new desktops to inventory',
       timestamp: '2 hours ago',
       station: 'KKIA',
-      type: 'create' as const
+      type: 'create'
     },
     {
       id: '7',
@@ -153,7 +154,7 @@ const stationActivities = {
       target: 'network equipment maintenance',
       timestamp: '2 days ago',
       station: 'KKIA',
-      type: 'update' as const
+      type: 'update'
     },
   ],
   smkia: [
@@ -164,7 +165,7 @@ const stationActivities = {
       target: 'printers for maintenance',
       timestamp: '45 minutes ago',
       station: 'SMKIA',
-      type: 'maintenance' as const
+      type: 'maintenance'
     },
     {
       id: '8',
@@ -173,7 +174,7 @@ const stationActivities = {
       target: 'new communication equipment',
       timestamp: '4 days ago',
       station: 'SMKIA',
-      type: 'create' as const
+      type: 'create'
     },
   ],
   hmnia: [
@@ -184,7 +185,7 @@ const stationActivities = {
       target: 'contract management records',
       timestamp: '5 hours ago',
       station: 'HMNIA',
-      type: 'update' as const
+      type: 'update'
     },
     {
       id: '9',
@@ -193,7 +194,7 @@ const stationActivities = {
       target: 'IT security incident',
       timestamp: '1 week ago',
       station: 'HMNIA',
-      type: 'issue' as const
+      type: 'issue'
     },
   ],
   mia: [
@@ -204,7 +205,7 @@ const stationActivities = {
       target: 'obsolete laptop from inventory',
       timestamp: '1 day ago',
       station: 'MIA',
-      type: 'delete' as const
+      type: 'delete'
     },
     {
       id: '10',
@@ -213,13 +214,13 @@ const stationActivities = {
       target: 'asset maintenance review',
       timestamp: '5 days ago',
       station: 'MIA',
-      type: 'maintenance' as const
+      type: 'maintenance'
     },
   ],
 };
 
 // Station-specific stats
-const stationStats = {
+const stationStats: { [key: string]: StationStats } = {
   all: {
     totalAssets: '4,434',
     maintenance: '67',
@@ -277,7 +278,7 @@ const stationStats = {
 };
 
 // Chart data
-const stationTrendsData = {
+const stationTrendsData: { [key: string]: { daily: ChartDataPoint[], weekly: ChartDataPoint[], monthly: ChartDataPoint[] } } = {
   all: {
     daily: [
       { date: 'Mon', acquisitions: 12, disposals: 5, transfers: 8 },
@@ -443,6 +444,7 @@ const getFilteredStations = (selectedStation: string) => {
 
 const Index = () => {
   const [selectedStation, setSelectedStation] = useState('all');
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
   // Get data for the selected station
   const assetDistribution = stationAssetDistributions[selectedStation as keyof typeof stationAssetDistributions];
@@ -474,7 +476,10 @@ const Index = () => {
                 <TabsTrigger value="mia" className="text-xs">MIA</TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button>Generate Report</Button>
+            <Button onClick={() => setReportDialogOpen(true)}>
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Generate Report
+            </Button>
           </div>
         </div>
 
@@ -572,6 +577,17 @@ const Index = () => {
 
         <StationOverview stations={filteredStations} />
       </div>
+
+      {/* Report Dialog */}
+      <ReportDialog
+        isOpen={reportDialogOpen}
+        onClose={() => setReportDialogOpen(false)}
+        selectedStation={selectedStation}
+        stations={filteredStations}
+        assetDistribution={assetDistribution}
+        stats={stats}
+        trendsData={trendsData}
+      />
     </Layout>
   );
 };
