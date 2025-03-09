@@ -1,6 +1,6 @@
 
-import { useState } from 'react';
-import { Bell, Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bell, Search, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,9 +13,83 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
+
+interface UserProfile {
+  full_name: string | null;
+  designation: string | null;
+  station: string | null;
+  department: string | null;
+}
 
 export function Header() {
   const [notifications, setNotifications] = useState(3);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(false);
+  
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (user) {
+        setLoading(true);
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('full_name, designation, station, department')
+            .eq('id', user.id)
+            .single();
+          
+          if (error) {
+            console.error('Error fetching profile:', error);
+            return;
+          }
+          
+          setUserProfile(data as UserProfile);
+        } catch (error) {
+          console.error('Error:', error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    
+    fetchUserProfile();
+  }, [user]);
+  
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast({
+        title: "Signed out",
+        description: "You have been successfully signed out.",
+      });
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const getUserInitials = () => {
+    if (userProfile?.full_name) {
+      return userProfile.full_name
+        .split(' ')
+        .map(name => name[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2);
+    }
+    return user?.email?.substring(0, 2).toUpperCase() || 'AD';
+  };
   
   return (
     <header className="border-b bg-card py-3 px-6 animate-slideInFromTop">
@@ -75,20 +149,36 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 rounded-full" aria-label="User menu">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/placeholder.svg" alt="User" />
-                  <AvatarFallback>AD</AvatarFallback>
+                  <AvatarImage src="/placeholder.svg" alt={userProfile?.full_name || 'User'} />
+                  <AvatarFallback>{getUserInitials()}</AvatarFallback>
                 </Avatar>
-                <span className="font-medium">Airport Admin</span>
+                <div className="flex flex-col items-start">
+                  <span className="font-medium text-sm">{userProfile?.full_name || user?.email || 'User'}</span>
+                  {userProfile?.designation && (
+                    <span className="text-xs text-muted-foreground">{userProfile.designation}</span>
+                  )}
+                </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
+              {userProfile && (
+                <>
+                  <div className="px-2 py-1.5">
+                    <p className="text-xs text-muted-foreground">Department: {userProfile.department || 'Not set'}</p>
+                    <p className="text-xs text-muted-foreground">Station: {userProfile.station || 'Not set'}</p>
+                  </div>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+              <DropdownMenuItem onSelect={() => navigate('/settings')}>Profile</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => navigate('/settings')}>Settings</DropdownMenuItem>
               <DropdownMenuItem>Switch Station</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Log out</DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleSignOut} className="text-red-500">
+                <LogOut className="mr-2 h-4 w-4" />
+                Log out
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
