@@ -1,293 +1,308 @@
-
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { toast } from "sonner";
+import { useNavigate } from 'react-router-dom';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-interface Personnel {
-  id: string;
-  full_name: string;
-  department: string;
-  designation: string;
-  email: string;
-  phone: string;
-  station: string;
-  join_date: string;
-  status: string;
-}
-
-interface Station {
-  id: string;
-  name: string;
-  code: string;
-}
-
-interface PersonnelDialogProps {
-  isOpen: boolean;
-  onClose: (refreshData: boolean) => void;
-  personnel: Personnel | null;
-}
-
-export function PersonnelDialog({ isOpen, onClose, personnel }: PersonnelDialogProps) {
-  const [formData, setFormData] = useState<Partial<Personnel>>({
-    full_name: '',
-    department: '',
-    designation: '',
-    email: '',
-    phone: '',
-    station: '',
-    join_date: new Date().toISOString().split('T')[0],
-    status: 'Active'
+// Define password validation schema
+const passwordFormSchema = z
+  .object({
+    currentPassword: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+    newPassword: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+    confirmPassword: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [stations, setStations] = useState<Station[]>([]);
-  const [isLoadingStations, setIsLoadingStations] = useState(false);
-  const { toast } = useToast();
 
-  // Departments and statuses for dropdowns
-  const departments = ['IT', 'Finance', 'HR', 'Marketing', 'Operations', 'Sales', 'Legal', 'Security'];
-  const statuses = ['Active', 'On Leave', 'Inactive'];
+type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
-  useEffect(() => {
-    if (personnel) {
-      setFormData({
-        full_name: personnel.full_name || '',
-        department: personnel.department || '',
-        designation: personnel.designation || '',
-        email: personnel.email || '',
-        phone: personnel.phone || '',
-        station: personnel.station || '',
-        join_date: personnel.join_date ? new Date(personnel.join_date).toISOString().split('T')[0] : '',
-        status: personnel.status || 'Active',
-      });
-    }
+export function AccountSettings() {
+  const { user, signOut } = useAuth();
+  const { toast: hookToast } = useToast();
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const navigate = useNavigate();
+
+  // Initialize form
+  const form = useForm<PasswordFormValues>({
+    resolver: zodResolver(passwordFormSchema),
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+  });
+
+  const onSubmit = async (values: PasswordFormValues) => {
+    if (!user) return;
     
-    fetchStations();
-  }, [personnel]);
-
-  const fetchStations = async () => {
+    setIsChangingPassword(true);
     try {
-      setIsLoadingStations(true);
-      const { data, error } = await supabase
-        .from('stations')
-        .select('id, name, code');
-      
-      if (error) throw error;
-      
-      setStations(data || []);
-    } catch (error) {
-      console.error('Error fetching stations:', error);
-      toast({
-        title: "Error",
-        description: "Could not load stations data",
-        variant: "destructive"
+      // First verify the current password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: values.currentPassword,
       });
-    } finally {
-      setIsLoadingStations(false);
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      if (personnel) {
-        // Update existing personnel
-        const { error } = await supabase
-          .from('profiles')
-          .update(formData)
-          .eq('id', personnel.id);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Personnel updated successfully"
-        });
-      } else {
-        // Create new personnel (this would typically involve user creation in auth)
-        // For demo purposes, we'll create a new profile directly
-        const { error } = await supabase
-          .from('profiles')
-          .insert([formData]);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Success",
-          description: "Personnel added successfully"
-        });
+      
+      if (signInError) {
+        throw new Error('Current password is incorrect');
       }
       
-      onClose(true);
-    } catch (error) {
-      console.error('Error saving personnel:', error);
-      toast({
-        title: "Error",
-        description: personnel ? "Could not update personnel" : "Could not add personnel",
-        variant: "destructive"
+      // If verification successful, update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: values.newPassword,
+      });
+      
+      if (updateError) throw updateError;
+      
+      hookToast({
+        title: 'Password updated',
+        description: 'Your password has been successfully updated.',
+      });
+      
+      // Reset form
+      form.reset();
+    } catch (error: any) {
+      console.error('Error updating password:', error);
+      hookToast({
+        title: 'Error',
+        description: error.message || 'Failed to update password. Please try again.',
+        variant: 'destructive',
       });
     } finally {
-      setIsSubmitting(false);
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast("Signed out successfully");
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      hookToast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    setIsDeletingAccount(true);
+    try {
+      // First delete the user's profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', user.id);
+        
+      if (profileError) throw profileError;
+      
+      // Then delete the user's auth record
+      const { error: authError } = await supabase.auth.admin.deleteUser(
+        user.id
+      );
+      
+      if (authError) throw authError;
+      
+      // Sign out and redirect to login
+      await signOut();
+      toast("Account deleted successfully");
+      navigate('/login');
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      hookToast({
+        title: "Error",
+        description: error.message || "Failed to delete account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => onClose(false)}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
-          <DialogTitle>{personnel ? 'Edit Personnel' : 'Add New Personnel'}</DialogTitle>
-          <DialogDescription>
-            {personnel ? 'Update personnel information in the system.' : 'Add a new personnel to the system.'}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name">Full Name</Label>
-              <Input 
-                id="full_name" 
-                name="full_name" 
-                value={formData.full_name || ''} 
-                onChange={handleChange} 
-                required 
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Change Password</CardTitle>
+          <CardDescription>
+            Update your account password to enhance security.
+          </CardDescription>
+        </CardHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="currentPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Current Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="Enter your current password" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input 
-                id="email" 
-                name="email" 
-                type="email" 
-                value={formData.email || ''} 
-                onChange={handleChange} 
-                required 
+              
+              <FormField
+                control={form.control}
+                name="newPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="Enter your new password" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="department">Department</Label>
-              <Select 
-                value={formData.department || ''} 
-                onValueChange={(value) => handleSelectChange('department', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="designation">Designation</Label>
-              <Input 
-                id="designation" 
-                name="designation" 
-                value={formData.designation || ''} 
-                onChange={handleChange} 
+              
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm New Password</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="password" 
+                        placeholder="Confirm your new password" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="station">Station</Label>
-              <Select 
-                value={formData.station || ''} 
-                onValueChange={(value) => handleSelectChange('station', value)}
-                disabled={isLoadingStations}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={isLoadingStations ? "Loading..." : "Select station"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {stations.map((station) => (
-                    <SelectItem key={station.id} value={station.name}>{station.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input 
-                id="phone" 
-                name="phone" 
-                value={formData.phone || ''} 
-                onChange={handleChange} 
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="join_date">Join Date</Label>
-              <Input 
-                id="join_date" 
-                name="join_date" 
-                type="date" 
-                value={formData.join_date || ''} 
-                onChange={handleChange} 
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select 
-                value={formData.status || 'Active'} 
-                onValueChange={(value) => handleSelectChange('status', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statuses.map((status) => (
-                    <SelectItem key={status} value={status}>{status}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" disabled={isChangingPassword}>
+                {isChangingPassword ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Update Password'
+                )}
+              </Button>
+            </CardFooter>
+          </form>
+        </Form>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Account Actions</CardTitle>
+          <CardDescription>
+            Manage your account settings.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <h3 className="text-sm font-medium">Sign Out of Your Account</h3>
+            <p className="text-sm text-muted-foreground">
+              Sign out from this device.
+            </p>
           </div>
           
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onClose(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                personnel ? 'Update' : 'Add Personnel'
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <div>
+            <h3 className="text-sm font-medium">Delete Account</h3>
+            <p className="text-sm text-muted-foreground">
+              Permanently delete your account and all associated data.
+            </p>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" onClick={handleSignOut}>
+            Sign Out
+          </Button>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">Delete Account</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your
+                  account and remove all associated data from our servers.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={handleDeleteAccount}
+                  disabled={isDeletingAccount}
+                >
+                  {isDeletingAccount ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete Account'
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </CardFooter>
+      </Card>
+    </div>
   );
 }

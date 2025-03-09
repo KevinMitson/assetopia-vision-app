@@ -6,6 +6,7 @@ import * as z from 'zod';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { toast } from "sonner";
 import { Loader2 } from 'lucide-react';
 import {
   Form,
@@ -53,8 +54,8 @@ const departments = [
 ];
 
 export function ProfileSettings() {
-  const { user } = useAuth();
-  const { toast } = useToast();
+  const { user, updateProfile } = useAuth();
+  const { toast: hookToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [stations, setStations] = useState<{ id: string; name: string }[]>([]);
 
@@ -118,7 +119,7 @@ export function ProfileSettings() {
         }
       } catch (error) {
         console.error('Error fetching profile:', error);
-        toast({
+        hookToast({
           title: 'Error',
           description: 'Failed to load profile information.',
           variant: 'destructive',
@@ -129,35 +130,34 @@ export function ProfileSettings() {
     };
     
     fetchUserProfile();
-  }, [user, form, toast]);
+  }, [user, form, hookToast]);
 
   const onSubmit = async (values: ProfileFormValues) => {
     if (!user) return;
     
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: values.full_name,
-          email: values.email,
-          phone: values.phone,
-          designation: values.designation,
-          department: values.department,
-          station: values.station,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
+      const { error, success } = await updateProfile({
+        full_name: values.full_name,
+        email: values.email,
+        phone: values.phone,
+        designation: values.designation,
+        department: values.department,
+        station: values.station,
+      });
         
       if (error) throw error;
       
-      toast({
-        title: 'Profile updated',
-        description: 'Your profile has been successfully updated.',
-      });
-    } catch (error) {
+      if (success) {
+        toast("Profile updated successfully");
+        hookToast({
+          title: 'Profile updated',
+          description: 'Your profile has been successfully updated.',
+        });
+      }
+    } catch (error: any) {
       console.error('Error updating profile:', error);
-      toast({
+      hookToast({
         title: 'Error',
         description: 'Failed to update profile. Please try again.',
         variant: 'destructive',
@@ -243,7 +243,7 @@ export function ProfileSettings() {
                   <Select 
                     onValueChange={field.onChange} 
                     defaultValue={field.value}
-                    value={field.value}
+                    value={field.value || undefined}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -272,7 +272,7 @@ export function ProfileSettings() {
                   <Select 
                     onValueChange={field.onChange} 
                     defaultValue={field.value}
-                    value={field.value}
+                    value={field.value || undefined}
                   >
                     <FormControl>
                       <SelectTrigger>

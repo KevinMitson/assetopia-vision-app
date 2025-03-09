@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from "sonner";
+import { useNavigate } from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,8 +55,10 @@ type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
 export function AccountSettings() {
   const { user, signOut } = useAuth();
-  const { toast } = useToast();
+  const { toast: hookToast } = useToast();
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const navigate = useNavigate();
 
   // Initialize form
   const form = useForm<PasswordFormValues>({
@@ -88,7 +92,7 @@ export function AccountSettings() {
       
       if (updateError) throw updateError;
       
-      toast({
+      hookToast({
         title: 'Password updated',
         description: 'Your password has been successfully updated.',
       });
@@ -97,7 +101,7 @@ export function AccountSettings() {
       form.reset();
     } catch (error: any) {
       console.error('Error updating password:', error);
-      toast({
+      hookToast({
         title: 'Error',
         description: error.message || 'Failed to update password. Please try again.',
         variant: 'destructive',
@@ -110,17 +114,51 @@ export function AccountSettings() {
   const handleSignOut = async () => {
     try {
       await signOut();
-      toast({
-        title: "Signed out",
-        description: "You have been successfully signed out.",
-      });
+      toast("Signed out successfully");
+      navigate('/login');
     } catch (error) {
       console.error('Error signing out:', error);
-      toast({
+      hookToast({
         title: "Error",
         description: "Failed to sign out. Please try again.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    setIsDeletingAccount(true);
+    try {
+      // First delete the user's profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', user.id);
+        
+      if (profileError) throw profileError;
+      
+      // Then delete the user's auth record
+      const { error: authError } = await supabase.auth.admin.deleteUser(
+        user.id
+      );
+      
+      if (authError) throw authError;
+      
+      // Sign out and redirect to login
+      await signOut();
+      toast("Account deleted successfully");
+      navigate('/login');
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      hookToast({
+        title: "Error",
+        description: error.message || "Failed to delete account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -247,8 +285,19 @@ export function AccountSettings() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Delete Account
+                <AlertDialogAction 
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={handleDeleteAccount}
+                  disabled={isDeletingAccount}
+                >
+                  {isDeletingAccount ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete Account'
+                  )}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

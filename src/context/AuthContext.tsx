@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -95,7 +96,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       const { error } = await supabase
         .from('profiles')
-        .update({ ...data, updated_at: new Date().toISOString() })
+        .update({ 
+          ...data, 
+          updated_at: new Date().toISOString() 
+        })
         .eq('id', user.id);
       
       if (error) {

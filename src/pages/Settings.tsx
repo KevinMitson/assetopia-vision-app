@@ -1,8 +1,17 @@
 
 import { Layout } from '@/components/layout/Layout';
 import { SettingsTabs } from '@/components/settings/SettingsTabs';
+import { useAuth } from '@/context/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 const Settings = () => {
+  const { user, loading } = useAuth();
+
+  // If not logged in, redirect to login
+  if (!loading && !user) {
+    return <Navigate to="/login" />;
+  }
+
   return (
     <Layout>
       <div className="animate-fadeIn">
