@@ -1,12 +1,21 @@
 
 import { Layout } from '@/components/layout/Layout';
+import { SettingsTabs } from '@/components/settings/SettingsTabs';
 
 const Settings = () => {
   return (
     <Layout>
       <div className="animate-fadeIn">
-        <h1 className="text-3xl font-bold tracking-tight mb-4">System Settings</h1>
-        <p className="text-muted-foreground">This page is under construction. Check back soon for the complete System Settings interface.</p>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+          <p className="text-muted-foreground">
+            Manage your account settings and preferences.
+          </p>
+        </div>
+        
+        <div className="max-w-4xl">
+          <SettingsTabs />
+        </div>
       </div>
     </Layout>
   );

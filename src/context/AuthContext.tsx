@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -16,6 +15,10 @@ interface AuthContextType {
     data: any;
   }>;
   signOut: () => Promise<void>;
+  updateProfile: (data: { [key: string]: any }) => Promise<{
+    error: Error | null;
+    success: boolean;
+  }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,14 +29,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for active session when the component mounts
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Subscribe to auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -86,6 +87,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await supabase.auth.signOut();
   };
 
+  const updateProfile = async (data: { [key: string]: any }) => {
+    try {
+      if (!user) {
+        return { error: new Error('No authenticated user found'), success: false };
+      }
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ ...data, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      
+      if (error) {
+        return { error, success: false };
+      }
+      
+      return { error: null, success: true };
+    } catch (error) {
+      return { error: error as Error, success: false };
+    }
+  };
+
   const value = {
     session,
     user,
@@ -93,6 +115,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signIn,
     signUp,
     signOut,
+    updateProfile,
   };
 
   return (
