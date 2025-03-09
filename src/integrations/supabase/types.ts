@@ -9,6 +9,122 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      assets: {
+        Row: {
+          asset_no: string
+          created_at: string | null
+          department: string
+          department_section: string
+          designation: string | null
+          equipment: string
+          id: string
+          last_maintenance: string | null
+          location: string
+          model: string
+          next_maintenance: string | null
+          oe_tag: string | null
+          os: string | null
+          pc_name: string | null
+          purchase_date: string | null
+          ram: string | null
+          serial_no: string
+          status: string
+          storage: string | null
+          updated_at: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          asset_no: string
+          created_at?: string | null
+          department: string
+          department_section: string
+          designation?: string | null
+          equipment: string
+          id?: string
+          last_maintenance?: string | null
+          location: string
+          model: string
+          next_maintenance?: string | null
+          oe_tag?: string | null
+          os?: string | null
+          pc_name?: string | null
+          purchase_date?: string | null
+          ram?: string | null
+          serial_no: string
+          status: string
+          storage?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          asset_no?: string
+          created_at?: string | null
+          department?: string
+          department_section?: string
+          designation?: string | null
+          equipment?: string
+          id?: string
+          last_maintenance?: string | null
+          location?: string
+          model?: string
+          next_maintenance?: string | null
+          oe_tag?: string | null
+          os?: string | null
+          pc_name?: string | null
+          purchase_date?: string | null
+          ram?: string | null
+          serial_no?: string
+          status?: string
+          storage?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
+      assignment_history: {
+        Row: {
+          asset_id: string
+          created_at: string | null
+          department: string | null
+          from_date: string
+          id: string
+          reason: string | null
+          to_date: string | null
+          user_name: string | null
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string | null
+          department?: string | null
+          from_date: string
+          id?: string
+          reason?: string | null
+          to_date?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string | null
+          department?: string | null
+          from_date?: string
+          id?: string
+          reason?: string | null
+          to_date?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_history_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null

@@ -247,61 +247,89 @@ export function AssetForm() {
     return assetTypeFields[assetType as AssetType]?.includes(fieldName) || false;
   };
 
-  function onSubmit(data: AssetFormValues) {
+  async function onSubmit(data: AssetFormValues) {
     setIsLoading(true);
     
-    // Create assignment history entry
-    const assignmentHistory: AssignmentHistory[] = [];
-    
-    if (data.status === 'Assigned' && data.user) {
-      assignmentHistory.push({
-        user: data.user,
-        department: data.department,
-        from: format(new Date(), 'yyyy-MM-dd'),
-        to: null,
-        reason: data.notes ? `Initial assignment: ${data.notes}` : 'Initial assignment'
+    try {
+      // Generate asset number if not provided
+      const assetNo = data.assetNo || `AST${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+      
+      // Create assignment history entry
+      const assignmentHistory: AssignmentHistory[] = [];
+      
+      if (data.status === 'Assigned' && data.user) {
+        assignmentHistory.push({
+          user: data.user,
+          department: data.department,
+          from: format(new Date(), 'yyyy-MM-dd'),
+          to: null,
+          reason: data.notes ? `Initial assignment: ${data.notes}` : 'Initial assignment'
+        });
+      }
+      
+      // Insert asset into Supabase
+      const { data: assetData, error: assetError } = await supabase
+        .from('assets')
+        .insert({
+          department: data.department,
+          department_section: data.departmentSection,
+          user_name: data.user || null,
+          designation: data.designation || null,
+          equipment: data.equipment,
+          model: data.model,
+          serial_no: data.serialNo,
+          asset_no: assetNo,
+          oe_tag: data.oeTag || null,
+          pc_name: data.pcName || null,
+          os: data.os || null,
+          ram: data.ram || null,
+          storage: data.storage || null,
+          purchase_date: data.purchaseDate || null,
+          status: data.status,
+          location: data.location,
+          last_maintenance: data.lastMaintenance || format(new Date(), 'yyyy-MM-dd'),
+          next_maintenance: data.nextMaintenance || null
+        })
+        .select('id')
+        .single();
+      
+      if (assetError) throw assetError;
+      
+      // Insert assignment history if there's a user assigned
+      if (assignmentHistory.length > 0 && assetData) {
+        const history = assignmentHistory[0];
+        
+        const { error: historyError } = await supabase
+          .from('assignment_history')
+          .insert({
+            asset_id: assetData.id,
+            user_name: history.user,
+            department: history.department,
+            from_date: history.from,
+            to_date: history.to,
+            reason: history.reason
+          });
+        
+        if (historyError) throw historyError;
+      }
+      
+      // Show success message
+      toast.success("Asset created successfully", {
+        description: `Asset ${data.serialNo} has been added to inventory.`,
       });
+      
+      // Navigate to inventory page
+      setTimeout(() => {
+        navigate('/inventory');
+      }, 1500);
+    } catch (error: any) {
+      console.error('Error saving asset:', error);
+      toast.error("Failed to save asset", {
+        description: error.message || "An unexpected error occurred",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Format the data to match the structure in Inventory.tsx
-    const assetData = {
-      id: Date.now(), // Temporary ID until saved to database
-      department: data.department,
-      departmentSection: data.departmentSection,
-      user: data.user || null,
-      designation: data.designation || null,
-      equipment: data.equipment,
-      model: data.model,
-      serialNo: data.serialNo,
-      assetNo: data.assetNo || `AST${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
-      pcName: data.pcName || '',
-      oeTag: data.oeTag || '',
-      os: data.os || '',
-      ram: data.ram || '',
-      storage: data.storage || '',
-      purchaseDate: data.purchaseDate || '-',
-      status: data.status,
-      location: data.location,
-      lastMaintenance: data.lastMaintenance || format(new Date(), 'yyyy-MM-dd'),
-      nextMaintenance: data.nextMaintenance || null,
-      assignmentHistory
-    };
-    
-    // Log the data (would be saved to database in production)
-    console.log(assetData);
-    
-    // Show success message
-    toast.success("Asset created successfully", {
-      description: `Asset ${data.serialNo} has been added to inventory.`,
-    });
-    
-    // Reset loading state
-    setIsLoading(false);
-    
-    // Reset form or navigate
-    setTimeout(() => {
-      navigate('/inventory');
-    }, 1500);
   }
 
   return (
