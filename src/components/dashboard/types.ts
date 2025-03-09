@@ -47,3 +47,42 @@ export interface ChartDataPoint {
   disposals: number;
   transfers: number;
 }
+
+export type AssetType = 'Laptop' | 'Desktop' | 'Printer' | 'Switch' | 'Server' | 'License' | 'Phone' | 'iPad' | 'Other';
+
+export type AssetStatus = 'Assigned' | 'Available' | 'Under Maintenance' | 'In Storage' | 'Unserviceable' | 'Stolen';
+
+export interface Asset {
+  id: number;
+  department: string;
+  user: string | null;
+  designation: string | null;
+  equipment: AssetType;
+  model: string;
+  serialNo: string;
+  assetNo: string;
+  pcName?: string;
+  os?: string;
+  ram?: string;
+  storage?: string;
+  purchaseDate: string;
+  status: AssetStatus;
+  location: string;
+  lastMaintenance?: string;
+  nextMaintenance?: string | null;
+  assignmentHistory?: AssignmentHistory[];
+  licenseKey?: string;
+  expiryDate?: string;
+  warranty?: string;
+  cost?: number;
+  vendor?: string;
+  notes?: string;
+}
+
+export interface AssignmentHistory {
+  user: string | null;
+  department: string | null;
+  from: string;
+  to: string | null;
+  reason: string;
+}
