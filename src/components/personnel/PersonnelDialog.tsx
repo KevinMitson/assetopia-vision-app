@@ -52,6 +52,7 @@ const passwordFormSchema = z
 
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
+// Make this both a named export AND a default export
 export function AccountSettings() {
   const { user, signOut } = useAuth();
   const { toast: hookToast } = useToast();
@@ -306,3 +307,29 @@ export function AccountSettings() {
     </div>
   );
 }
+
+// Add a default export for backward compatibility
+const PersonnelDialog = ({ isOpen, onClose, personnel }) => {
+  return (
+    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose(false)}>
+      <AlertDialogContent className="max-w-md">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{personnel ? 'Edit Personnel' : 'Add Personnel'}</AlertDialogTitle>
+          <AlertDialogDescription>
+            {personnel ? 'Update information for this personnel record' : 'Add a new personnel record to the system'}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="py-4">
+          <p className="text-sm text-muted-foreground">Personnel dialog placeholder</p>
+          <p className="text-sm text-muted-foreground mt-2">This dialog needs to be implemented</p>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={() => onClose(true)}>Save</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+};
+
+export default PersonnelDialog;

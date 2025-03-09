@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Search, UserPlus, FileEdit, Trash2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import PersonnelDialog from '@/components/personnel/PersonnelDialog';
+import { AccountSettings as PersonnelDialog } from '@/components/personnel/PersonnelDialog';
 
 interface Personnel {
   id: string;
