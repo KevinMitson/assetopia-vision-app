@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -308,8 +309,25 @@ export function AccountSettings() {
   );
 }
 
+// Define PersonnelDialog props
+interface PersonnelDialogProps {
+  isOpen: boolean;
+  onClose: (refreshData: boolean) => void;
+  personnel?: {
+    id: string;
+    full_name?: string;
+    department?: string;
+    designation?: string;
+    email?: string;
+    phone?: string;
+    station?: string;
+    join_date?: string;
+    status?: string;
+  } | null;
+}
+
 // Add a default export for backward compatibility
-const PersonnelDialog = ({ isOpen, onClose, personnel }) => {
+const PersonnelDialog = ({ isOpen, onClose, personnel }: PersonnelDialogProps) => {
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose(false)}>
       <AlertDialogContent className="max-w-md">
