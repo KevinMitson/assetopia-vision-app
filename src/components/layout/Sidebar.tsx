@@ -1,6 +1,6 @@
 
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   BarChart3, 
   Box, 
@@ -20,6 +20,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NavItemProps {
   icon: React.ElementType;
@@ -58,6 +60,55 @@ const NavItem = ({ icon: Icon, label, path, isCollapsed }: NavItemProps) => {
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [userProfile, setUserProfile] = useState<{ full_name: string | null }>(null);
+  
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single();
+          
+          if (error) {
+            console.error('Error fetching profile:', error);
+            return;
+          }
+          
+          setUserProfile(data);
+        } catch (error) {
+          console.error('Error:', error);
+        }
+      }
+    };
+    
+    fetchUserProfile();
+  }, [user]);
+  
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+  
+  const getUserInitials = () => {
+    if (userProfile?.full_name) {
+      return userProfile.full_name
+        .split(' ')
+        .map(name => name[0])
+        .join('')
+        .toUpperCase()
+        .substring(0, 2);
+    }
+    return user?.email?.substring(0, 2).toUpperCase() || 'AD';
+  };
 
   return (
     <div 
@@ -107,16 +158,16 @@ export function Sidebar() {
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
                 <AvatarImage src="/placeholder.svg" alt="Profile" />
-                <AvatarFallback>AD</AvatarFallback>
+                <AvatarFallback>{getUserInitials()}</AvatarFallback>
               </Avatar>
-              <span className="text-sm font-medium">Admin</span>
+              <span className="text-sm font-medium">{userProfile?.full_name || user?.email?.split('@')[0] || 'User'}</span>
             </div>
           )}
           
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className={isCollapsed ? "mx-auto" : ""}>
+                <Button variant="ghost" size="icon" className={isCollapsed ? "mx-auto" : ""} onClick={handleSignOut}>
                   <LogOut size={18} />
                 </Button>
               </TooltipTrigger>
