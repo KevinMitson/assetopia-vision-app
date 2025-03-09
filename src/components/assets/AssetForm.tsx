@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -13,8 +13,12 @@ import {
   Tablet,
   Network,
   Key,
-  Package
+  Package,
+  Users
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +42,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AssetType, AssetStatus } from '@/components/dashboard/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Create schema for form validation
 const assetFormSchema = z.object({
@@ -63,6 +68,7 @@ const assetFormSchema = z.object({
   cost: z.string().optional(),
   vendor: z.string().optional(),
   notes: z.string().optional(),
+  useCurrentUser: z.boolean().default(false),
 });
 
 type AssetFormValues = z.infer<typeof assetFormSchema>;
@@ -105,7 +111,20 @@ const statuses: AssetStatus[] = [
   'Assigned', 'Available', 'Under Maintenance', 'In Storage', 'Unserviceable', 'Stolen'
 ];
 
+interface AssignmentHistory {
+  user: string | null;
+  department: string | null;
+  from: string;
+  to: string | null;
+  reason: string;
+}
+
 export function AssetForm() {
+  const { user } = useAuth();
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
   const form = useForm<AssetFormValues>({
     resolver: zodResolver(assetFormSchema),
     defaultValues: {
@@ -131,46 +150,112 @@ export function AssetForm() {
       cost: '',
       vendor: '',
       notes: '',
+      useCurrentUser: false,
     },
   });
 
+  // Fetch user profile
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        if (error) throw error;
+        
+        setUserProfile(data);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+    
+    fetchUserProfile();
+  }, [user]);
+
+  // Watch for changes to determine which fields to show
   const assetType = form.watch('equipment') as AssetType;
+  const useCurrentUser = form.watch('useCurrentUser');
+  
+  // Update user and designation fields when useCurrentUser changes
+  useEffect(() => {
+    if (useCurrentUser && userProfile) {
+      form.setValue('user', userProfile.full_name || '');
+      form.setValue('designation', userProfile.designation || '');
+      form.setValue('department', userProfile.department || form.getValues('department'));
+    } else if (!useCurrentUser && form.getValues('user') === userProfile?.full_name) {
+      form.setValue('user', '');
+      form.setValue('designation', '');
+    }
+  }, [useCurrentUser, userProfile, form]);
+
   const shouldShowField = (fieldName: string) => {
     if (!assetType) return false;
     return assetTypeFields[assetType as AssetType]?.includes(fieldName) || false;
   };
 
   function onSubmit(data: AssetFormValues) {
+    setIsLoading(true);
+    
+    // Create assignment history entry
+    const assignmentHistory: AssignmentHistory[] = [];
+    
+    if (data.status === 'Assigned' && data.user) {
+      assignmentHistory.push({
+        user: data.user,
+        department: data.department,
+        from: format(new Date(), 'yyyy-MM-dd'),
+        to: null,
+        reason: data.notes ? `Initial assignment: ${data.notes}` : 'Initial assignment'
+      });
+    }
+    
+    // Format the data to match the structure in Inventory.tsx
+    const assetData = {
+      id: Date.now(), // Temporary ID until saved to database
+      assetNo: data.assetNo,
+      equipment: data.equipment,
+      model: data.model,
+      serialNo: data.serialNo,
+      department: data.department,
+      location: data.location,
+      status: data.status,
+      purchaseDate: data.purchaseDate,
+      user: data.status === 'Assigned' ? data.user : null,
+      designation: data.status === 'Assigned' ? data.designation : null,
+      pcName: data.pcName || '',
+      os: data.os || '',
+      ram: data.ram || '',
+      storage: data.storage || '',
+      lastMaintenance: data.lastMaintenance || format(new Date(), 'yyyy-MM-dd'),
+      nextMaintenance: data.nextMaintenance || null,
+      licenseKey: data.licenseKey || '',
+      expiryDate: data.expiryDate || '',
+      warranty: data.warranty || '',
+      cost: data.cost || '',
+      vendor: data.vendor || '',
+      assignmentHistory
+    };
+    
+    // Log the data (would be saved to database in production)
+    console.log(assetData);
+    
+    // Show success message
     toast.success("Asset created successfully", {
       description: `Asset ${data.assetNo} has been added to inventory.`,
     });
-    console.log(data);
     
-    // Reset form after submission
-    form.reset({
-      assetNo: '',
-      equipment: '',
-      model: '',
-      serialNo: '',
-      department: '',
-      location: '',
-      purchaseDate: format(new Date(), 'yyyy-MM-dd'),
-      status: 'Available',
-      user: '',
-      designation: '',
-      pcName: '',
-      os: '',
-      ram: '',
-      storage: '',
-      lastMaintenance: '',
-      nextMaintenance: '',
-      licenseKey: '',
-      expiryDate: '',
-      warranty: '',
-      cost: '',
-      vendor: '',
-      notes: '',
-    });
+    // Reset loading state
+    setIsLoading(false);
+    
+    // Reset form or navigate
+    setTimeout(() => {
+      navigate('/assets');
+    }, 1500);
   }
 
   return (
@@ -352,6 +437,78 @@ export function AssetForm() {
                 )}
               />
 
+              {/* User Assignment Section */}
+              {form.watch('status') === 'Assigned' && (
+                <>
+                  {userProfile && (
+                    <FormField
+                      control={form.control}
+                      name="useCurrentUser"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 col-span-2">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>
+                              Assign to me ({userProfile.full_name || user?.email})
+                            </FormLabel>
+                            <FormDescription>
+                              Use my profile information for this asset assignment
+                            </FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {shouldShowField('user') && (
+                    <FormField
+                      control={form.control}
+                      name="user"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Assigned User</FormLabel>
+                          <FormControl>
+                            <div className="flex">
+                              <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground">
+                                <Users size={16} />
+                              </span>
+                              <Input 
+                                className="rounded-l-none" 
+                                placeholder="John Doe" 
+                                {...field} 
+                                disabled={useCurrentUser}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {shouldShowField('designation') && (
+                    <FormField
+                      control={form.control}
+                      name="designation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>User Designation</FormLabel>
+                          <FormControl>
+                            <Input placeholder="IT Manager" {...field} disabled={useCurrentUser} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                </>
+              )}
+
               {/* Hardware-specific fields */}
               {shouldShowField('pcName') && (
                 <FormField
@@ -443,39 +600,6 @@ export function AssetForm() {
                       <FormLabel>Expiry Date</FormLabel>
                       <FormControl>
                         <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {/* User assignment fields */}
-              {shouldShowField('user') && (
-                <FormField
-                  control={form.control}
-                  name="user"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Assigned User</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              {shouldShowField('designation') && (
-                <FormField
-                  control={form.control}
-                  name="designation"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>User Designation</FormLabel>
-                      <FormControl>
-                        <Input placeholder="IT Manager" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -580,10 +704,17 @@ export function AssetForm() {
             />
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => form.reset()}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => navigate('/assets')}
+                disabled={isLoading}
+              >
                 Cancel
               </Button>
-              <Button type="submit">Submit</Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Submitting..." : "Submit"}
+              </Button>
             </div>
           </form>
         </Form>
