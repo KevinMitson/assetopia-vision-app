@@ -23,7 +23,7 @@ interface Station {
   assetsCount: number;
   utilization: number;
   status: 'operational' | 'maintenance' | 'issue';
-  location: string;
+  location: string; // Keeping this in the interface for data structure consistency
 }
 
 interface StationOverviewProps {
