@@ -287,10 +287,6 @@ const Stations = () => {
                 <CardContent>
                   <dl className="space-y-4">
                     <div className="flex flex-col">
-                      <dt className="text-sm font-medium text-muted-foreground">Location</dt>
-                      <dd className="text-lg">{selectedStation.location}</dd>
-                    </div>
-                    <div className="flex flex-col">
                       <dt className="text-sm font-medium text-muted-foreground">Asset Count</dt>
                       <dd className="text-lg">{selectedStation.assetCount}</dd>
                     </div>
