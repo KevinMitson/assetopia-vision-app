@@ -127,6 +127,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar: string | null
           created_at: string | null
           department: string | null
           designation: string | null
@@ -135,11 +136,13 @@ export type Database = {
           id: string
           join_date: string | null
           phone: string | null
+          role: string | null
           station: string | null
           status: string | null
           updated_at: string | null
         }
         Insert: {
+          avatar?: string | null
           created_at?: string | null
           department?: string | null
           designation?: string | null
@@ -148,11 +151,13 @@ export type Database = {
           id: string
           join_date?: string | null
           phone?: string | null
+          role?: string | null
           station?: string | null
           status?: string | null
           updated_at?: string | null
         }
         Update: {
+          avatar?: string | null
           created_at?: string | null
           department?: string | null
           designation?: string | null
@@ -161,6 +166,7 @@ export type Database = {
           id?: string
           join_date?: string | null
           phone?: string | null
+          role?: string | null
           station?: string | null
           status?: string | null
           updated_at?: string | null
