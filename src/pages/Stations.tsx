@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { 
@@ -21,7 +20,6 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
-// Station data
 const stationData = [
   {
     id: 'hq',
@@ -145,7 +143,6 @@ const stationData = [
   }
 ];
 
-// Asset distribution by station data
 const assetDistributionByStation = [
   { name: 'HQ', laptops: 490, desktops: 320, printers: 85, contracts: 350 },
   { name: 'KKIA', laptops: 320, desktops: 280, printers: 65, contracts: 318 },
@@ -192,7 +189,6 @@ const Stations = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Station</TableHead>
-                        <TableHead>Location</TableHead>
                         <TableHead>Asset Count</TableHead>
                         <TableHead>Utilization</TableHead>
                         <TableHead>Next Inventory Check</TableHead>
@@ -203,7 +199,6 @@ const Stations = () => {
                       {stationData.map((station) => (
                         <TableRow key={station.id} onClick={() => setSelectedStation(station)} className="cursor-pointer">
                           <TableCell className="font-medium">{station.name}</TableCell>
-                          <TableCell>{station.location}</TableCell>
                           <TableCell>{station.assetCount}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
