@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { AssetType } from '@/components/dashboard/types';
 import { assetTypeIcons, assetTypeFields, departments, departmentSections, locations, statuses, sampleUsers, departmentsData, stationsData } from './constants';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
@@ -8,6 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { UseFormReturn } from 'react-hook-form';
 import { AssetFormValues } from './types';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface FieldProps {
   form: UseFormReturn<AssetFormValues>;
@@ -70,37 +73,90 @@ export const DepartmentField: React.FC<FieldProps> = ({ form }) => (
   />
 );
 
-export const UserField: React.FC<FieldProps> = ({ form, setSelectedUser }) => (
-  <FormField
-    control={form.control}
-    name="user"
-    render={({ field }) => (
-      <FormItem>
-        <FormLabel>User</FormLabel>
-        <Select 
-          onValueChange={(value) => {
-            field.onChange(value);
-            if(setSelectedUser) setSelectedUser(value);
-          }} 
-          defaultValue={field.value}
-        >
-          <FormControl>
-            <SelectTrigger>
-              <SelectValue placeholder="Select user" />
-            </SelectTrigger>
-          </FormControl>
-          <SelectContent>
-            <SelectItem value="unassigned">-- No user assigned --</SelectItem>
-            {sampleUsers.map((user) => (
-              <SelectItem key={user.name} value={user.name}>{user.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <FormMessage />
-      </FormItem>
-    )}
-  />
-);
+export const UserField: React.FC<FieldProps> = ({ form, setSelectedUser }) => {
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredUsers = searchQuery === "" 
+    ? sampleUsers 
+    : sampleUsers.filter((user) => 
+        user.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+  return (
+    <FormField
+      control={form.control}
+      name="user"
+      render={({ field }) => (
+        <FormItem className="flex flex-col">
+          <FormLabel>User</FormLabel>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <FormControl>
+                <div
+                  className={cn(
+                    "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                    !field.value && "text-muted-foreground"
+                  )}
+                >
+                  {field.value ? field.value === "unassigned" ? "-- No user assigned --" : field.value : "Select user"}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </div>
+              </FormControl>
+            </PopoverTrigger>
+            <PopoverContent className="w-[300px] p-0">
+              <Command>
+                <CommandInput 
+                  placeholder="Search user..." 
+                  onValueChange={setSearchQuery} 
+                />
+                <CommandEmpty>No user found.</CommandEmpty>
+                <CommandGroup className="max-h-[200px] overflow-y-auto">
+                  <CommandItem
+                    value="unassigned"
+                    onSelect={() => {
+                      form.setValue("user", "unassigned");
+                      if(setSelectedUser) setSelectedUser("unassigned");
+                      setOpen(false);
+                    }}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        field.value === "unassigned" ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    -- No user assigned --
+                  </CommandItem>
+                  {filteredUsers.map((user) => (
+                    <CommandItem
+                      key={user.name}
+                      value={user.name}
+                      onSelect={() => {
+                        form.setValue("user", user.name);
+                        if(setSelectedUser) setSelectedUser(user.name);
+                        setOpen(false);
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          field.value === user.name ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {user.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+};
 
 export const DesignationField: React.FC<FieldProps> = ({ form }) => (
   <FormField
