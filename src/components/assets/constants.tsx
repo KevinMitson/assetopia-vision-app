@@ -9,46 +9,66 @@ import {
   Network,
   Key,
   Package,
+  Building,
+  MapPin,
 } from 'lucide-react';
 import { AssetType } from '@/components/dashboard/types';
 
-// Department data structure
-export const departmentSections = [
-  'Managing Director',
-  'DMD',
-  'MD',
-  'Internal Audit',
-  'Communications and Branding',
-  'Procurement',
-  'TSU',
-  'Finance',
-  'IT',
-  'HR',
-  'Operations',
-  'Marketing',
-  'Legal',
-  'Administration'
+// Department data structure - now with a more structured format
+export interface Department {
+  id: string;
+  name: string;
+  section: string;
+}
+
+// Sample departments data
+export const departmentsData: Department[] = [
+  { id: 'md-1', name: 'MD', section: 'Managing Director' },
+  { id: 'dmd-1', name: 'DMD', section: 'Managing Director' },
+  { id: 'ia-1', name: 'Internal Audit', section: 'Managing Director' },
+  { id: 'comms-1', name: 'Communications and Branding', section: 'Managing Director' },
+  { id: 'proc-1', name: 'Procurement', section: 'Managing Director' },
+  { id: 'tsu-1', name: 'TSU', section: 'Managing Director' },
+  { id: 'finance-1', name: 'Finance', section: 'Finance' },
+  { id: 'it-1', name: 'IT', section: 'IT' },
+  { id: 'hr-1', name: 'HR', section: 'HR' },
+  { id: 'ops-1', name: 'Operations', section: 'Operations' },
+  { id: 'marketing-1', name: 'Marketing', section: 'Marketing' },
+  { id: 'legal-1', name: 'Legal', section: 'Legal' },
+  { id: 'admin-1', name: 'Administration', section: 'Administration' },
 ];
 
-export const departments = [
-  'DMD',
-  'MD',
-  'Internal Audit',
-  'Communications and Branding',
-  'Procurement',
-  'TSU',
-  'Finance',
-  'IT',
-  'HR',
-  'Operations',
-  'Marketing',
-  'Legal',
-  'Administration'
+// Backward compatibility for existing code
+export const departmentSections = Array.from(
+  new Set(departmentsData.map(dept => dept.section))
+).sort();
+
+export const departments = Array.from(
+  new Set(departmentsData.map(dept => dept.name))
+).sort();
+
+// Station data structure
+export interface Station {
+  id: string;
+  name: string;
+  code: string;
+  location: string;
+  status: 'Active' | 'Inactive' | 'Under Maintenance';
+}
+
+// Sample stations data
+export const stationsData: Station[] = [
+  { id: 'hq-1', name: 'Head Office', code: 'HQ', location: 'Lusaka', status: 'Active' },
+  { id: 'kkia-1', name: 'KKIA', code: 'KKIA', location: 'Lusaka', status: 'Active' },
+  { id: 'smkia-1', name: 'SMKIA', code: 'SMKIA', location: 'Livingstone', status: 'Active' },
+  { id: 'hmnia-1', name: 'HMNIA', code: 'HMNIA', location: 'Ndola', status: 'Active' },
+  { id: 'mia-1', name: 'MIA', code: 'MIA', location: 'Mfuwe', status: 'Active' },
+  { id: 'sc-1', name: 'Service Center', code: 'SC', location: 'Lusaka', status: 'Active' },
+  { id: 'stores-1', name: 'Stores', code: 'STR', location: 'Lusaka', status: 'Active' },
 ];
 
-export const locations = [
-  'Head Office', 'KKIA', 'SMKIA', 'HMNIA', 'MIA', 'Service Center', 'Stores'
-];
+// Backward compatibility for existing code
+export const locations = stationsData.map(station => station.name);
 
 export const statuses = [
   'Serviceable', 'Unserviceable', 'Assigned', 'Available', 'Under Maintenance', 'In Storage', 'Stolen'
@@ -78,6 +98,12 @@ export const assetTypeIcons: Record<AssetType, React.ReactNode> = {
   'Phone': <Smartphone className="mr-2" size={16} />,
   'iPad': <Tablet className="mr-2" size={16} />,
   'Other': <Package className="mr-2" size={16} />,
+};
+
+// Icons for management pages
+export const managementIcons = {
+  departments: <Building className="mr-2" size={16} />,
+  stations: <MapPin className="mr-2" size={16} />,
 };
 
 // Sample users

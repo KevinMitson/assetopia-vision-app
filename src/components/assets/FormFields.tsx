@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { AssetType } from '@/components/dashboard/types';
-import { assetTypeIcons, assetTypeFields, departments, departmentSections, locations, statuses, sampleUsers } from './constants';
+import { assetTypeIcons, assetTypeFields, departments, departmentSections, locations, statuses, sampleUsers, departmentsData, stationsData } from './constants';
 import { FormField, FormItem, FormLabel, FormControl, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
