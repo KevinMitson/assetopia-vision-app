@@ -135,7 +135,7 @@ export function Sidebar({ className, navItems, ...props }: SidebarProps) {
                   )}
                   <span>{item.title}</span>
                 </summary>
-                <div className="mt-1 space-y-1">
+                <div className="mt-1 space-y-1 pl-4">
                   {item.submenu.map((subItem) => (
                     <SidebarNavItem
                       key={subItem.title}
