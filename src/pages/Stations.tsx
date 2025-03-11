@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { 
@@ -19,6 +20,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const stationData = [
   {
@@ -203,7 +205,15 @@ const Stations = () => {
                     </TableHeader>
                     <TableBody>
                       {stationData.map((station) => (
-                        <TableRow key={station.id} onClick={() => setSelectedStation(station)} className="cursor-pointer">
+                        <TableRow 
+                          key={station.id} 
+                          onClick={() => {
+                            setSelectedStation(station);
+                            // Automatically switch to details tab when a station is clicked
+                            setActiveTab('details');
+                          }} 
+                          className="cursor-pointer hover:bg-muted"
+                        >
                           <TableCell className="font-medium">{station.name}</TableCell>
                           <TableCell>{station.assetCount}</TableCell>
                           <TableCell>
@@ -266,24 +276,32 @@ const Stations = () => {
           </TabsContent>
           
           <TabsContent value="details" className="space-y-4">
-            <div className="flex justify-between mb-4">
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center mb-4">
               <h2 className="text-2xl font-semibold">Station Details</h2>
               <div>
-                <TabsList>
-                  {stationData.map((station) => (
-                    <TabsTrigger 
-                      key={station.id}
-                      value={station.id}
-                      onClick={() => {
-                        setSelectedStation(station);
-                        setActiveTab('details');
-                      }}
-                      className={selectedStation.id === station.id ? 'bg-primary text-primary-foreground' : ''}
-                    >
-                      {station.name}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
+                <Select 
+                  value={selectedStation.id} 
+                  onValueChange={(value) => {
+                    const station = stationData.find(s => s.id === value);
+                    if (station) {
+                      setSelectedStation(station);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Select station" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stationData.map((station) => (
+                      <SelectItem 
+                        key={station.id} 
+                        value={station.id}
+                      >
+                        {station.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             
