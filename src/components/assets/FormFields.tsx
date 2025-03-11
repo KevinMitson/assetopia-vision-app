@@ -90,7 +90,7 @@ export const UserField: React.FC<FieldProps> = ({ form, setSelectedUser }) => (
             </SelectTrigger>
           </FormControl>
           <SelectContent>
-            <SelectItem value="">-- No user assigned --</SelectItem>
+            <SelectItem value="unassigned">-- No user assigned --</SelectItem>
             {sampleUsers.map((user) => (
               <SelectItem key={user.name} value={user.name}>{user.name}</SelectItem>
             ))}

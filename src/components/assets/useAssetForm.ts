@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -49,7 +48,6 @@ export const useAssetForm = (assetId?: string) => {
     },
   });
 
-  // Fetch user profile
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (!user) return;
@@ -72,14 +70,12 @@ export const useAssetForm = (assetId?: string) => {
     fetchUserProfile();
   }, [user]);
 
-  // Fetch asset data if editing
   useEffect(() => {
     const fetchAssetData = async () => {
       if (!assetId) return;
       
       setIsLoadingAsset(true);
       try {
-        // Fetch asset details
         const { data: assetData, error: assetError } = await supabase
           .from('assets')
           .select('*')
@@ -90,7 +86,6 @@ export const useAssetForm = (assetId?: string) => {
         
         setCurrentAsset(assetData);
         
-        // Fetch assignment history
         const { data: historyData, error: historyError } = await supabase
           .from('assignment_history')
           .select('*')
@@ -110,7 +105,6 @@ export const useAssetForm = (assetId?: string) => {
         
         setAssignmentHistory(formattedHistory);
         
-        // Populate form with asset data
         form.reset({
           assetNo: assetData.asset_no || '',
           equipment: assetData.equipment || '',
@@ -136,7 +130,6 @@ export const useAssetForm = (assetId?: string) => {
           condition: 'Good',
         });
         
-        // If there's a current user assigned, prepare for reassignment
         if (assetData.user_name) {
           setIsReassignment(true);
         }
@@ -153,11 +146,9 @@ export const useAssetForm = (assetId?: string) => {
     fetchAssetData();
   }, [assetId, form]);
 
-  // Watch for changes to determine which fields to show
   const assetType = form.watch('equipment');
   const useCurrentUser = form.watch('useCurrentUser');
   
-  // Update user and designation fields when useCurrentUser changes
   useEffect(() => {
     if (useCurrentUser && userProfile) {
       form.setValue('user', userProfile.full_name || '');
@@ -169,7 +160,6 @@ export const useAssetForm = (assetId?: string) => {
     }
   }, [useCurrentUser, userProfile, form]);
 
-  // Update designation when a sample user is selected
   useEffect(() => {
     if (selectedUser) {
       const user = sampleUsers.find(u => u.name === selectedUser);
@@ -185,16 +175,14 @@ export const useAssetForm = (assetId?: string) => {
     setIsLoading(true);
     
     try {
-      // Generate asset number if not provided (for new assets only)
       const assetNo = data.assetNo || (assetId ? currentAsset.asset_no : `AST${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
       
-      // Create assignment history entry if needed
+      const userName = data.user === "unassigned" ? null : data.user || null;
+      
       let updatedHistory = false;
       
       if (assetId) {
-        // Handle reassignment for existing asset
-        if (currentAsset.user_name !== data.user) {
-          // Close the previous assignment if there was one
+        if (currentAsset.user_name !== userName) {
           if (currentAsset.user_name) {
             const { error: updateError } = await supabase
               .from('assignment_history')
@@ -207,13 +195,12 @@ export const useAssetForm = (assetId?: string) => {
             if (updateError) throw updateError;
           }
           
-          // Create new assignment history if there's a new user
-          if (data.user) {
+          if (userName) {
             const { error: historyError } = await supabase
               .from('assignment_history')
               .insert({
                 asset_id: assetId,
-                user_name: data.user,
+                user_name: userName,
                 department: data.department,
                 from_date: format(new Date(), 'yyyy-MM-dd'),
                 to_date: null,
@@ -227,13 +214,12 @@ export const useAssetForm = (assetId?: string) => {
           updatedHistory = true;
         }
         
-        // Update the asset
         const { error: assetError } = await supabase
           .from('assets')
           .update({
             department: data.department,
             department_section: data.departmentSection,
-            user_name: data.user || null,
+            user_name: userName,
             designation: data.designation || null,
             equipment: data.equipment,
             model: data.model,
@@ -255,20 +241,17 @@ export const useAssetForm = (assetId?: string) => {
         
         if (assetError) throw assetError;
         
-        // Show success message
         toast.success("Asset updated successfully", {
           description: updatedHistory ? 
-            `Asset ${data.serialNo} has been reassigned to ${data.user || 'inventory'}` : 
+            `Asset ${data.serialNo} has been reassigned to ${userName || 'inventory'}` : 
             `Asset ${data.serialNo} has been updated`,
         });
       } else {
-        // Create new asset
-        // Create assignment history entry
         const assignmentHistory: AssignmentHistory[] = [];
         
-        if (data.status === 'Assigned' && data.user) {
+        if (data.status === 'Assigned' && userName) {
           assignmentHistory.push({
-            user: data.user,
+            user: userName,
             department: data.department,
             from: format(new Date(), 'yyyy-MM-dd'),
             to: null,
@@ -277,13 +260,12 @@ export const useAssetForm = (assetId?: string) => {
           });
         }
         
-        // Insert asset into Supabase
         const { data: assetData, error: assetError } = await supabase
           .from('assets')
           .insert({
             department: data.department,
             department_section: data.departmentSection,
-            user_name: data.user || null,
+            user_name: userName,
             designation: data.designation || null,
             equipment: data.equipment,
             model: data.model,
@@ -305,7 +287,6 @@ export const useAssetForm = (assetId?: string) => {
         
         if (assetError) throw assetError;
         
-        // Insert assignment history if there's a user assigned
         if (assignmentHistory.length > 0 && assetData) {
           const history = assignmentHistory[0];
           
@@ -324,13 +305,11 @@ export const useAssetForm = (assetId?: string) => {
           if (historyError) throw historyError;
         }
         
-        // Show success message
         toast.success("Asset created successfully", {
           description: `Asset ${data.serialNo} has been added to inventory.`,
         });
       }
       
-      // Navigate to inventory page
       setTimeout(() => {
         navigate('/inventory');
       }, 1500);
