@@ -9,6 +9,11 @@ import {
   User,
   User2,
   Users,
+  Building,
+  MapPin,
+  Tag,
+  ShieldCheck,
+  Wrench,
 } from "lucide-react";
 
 import { MainNav } from "@/components/main-nav";
@@ -102,6 +107,33 @@ const navigationItems = [
     title: "Personnel",
     href: "/personnel",
     icon: <Users size={20} />,
+  },
+  {
+    title: "Management",
+    href: "#",
+    icon: <Wrench size={20} />,
+    submenu: [
+      {
+        title: "Departments",
+        href: "/management/departments",
+        icon: <Building size={16} />,
+      },
+      {
+        title: "Stations",
+        href: "/management/stations",
+        icon: <MapPin size={16} />,
+      },
+      {
+        title: "Asset Types",
+        href: "/management/asset-types",
+        icon: <Tag size={16} />,
+      },
+      {
+        title: "Roles",
+        href: "/management/roles",
+        icon: <ShieldCheck size={16} />,
+      }
+    ]
   },
   {
     title: "Permissions",

@@ -18,6 +18,10 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import AddAsset from "./pages/Assets/AddAsset";
+import ManageDepartments from "./pages/Management/ManageDepartments";
+import ManageStations from "./pages/Management/ManageStations";
+import ManageAssetTypes from "./pages/Management/ManageAssetTypes";
+import ManageRoles from "./pages/Management/ManageRoles";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +47,12 @@ const App = () => (
             <Route path="/personnel" element={<ProtectedRoute><Personnel /></ProtectedRoute>} />
             <Route path="/permissions" element={<ProtectedRoute><Permissions /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            
+            {/* Management Routes */}
+            <Route path="/management/departments" element={<ProtectedRoute><ManageDepartments /></ProtectedRoute>} />
+            <Route path="/management/stations" element={<ProtectedRoute><ManageStations /></ProtectedRoute>} />
+            <Route path="/management/asset-types" element={<ProtectedRoute><ManageAssetTypes /></ProtectedRoute>} />
+            <Route path="/management/roles" element={<ProtectedRoute><ManageRoles /></ProtectedRoute>} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>
