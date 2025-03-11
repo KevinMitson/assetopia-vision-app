@@ -155,6 +155,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           user_metadata: {
             full_name: SUPER_ADMIN.name,
           },
+          app_metadata: {},
+          aud: 'authenticated',
+          created_at: new Date().toISOString(),
         } as User;
         
         const mockSession = {
