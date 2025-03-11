@@ -9,7 +9,7 @@ import { UseFormReturn } from 'react-hook-form';
 import { AssetFormValues } from './types';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FieldProps {
@@ -74,83 +74,30 @@ export const DepartmentField: React.FC<FieldProps> = ({ form }) => (
 );
 
 export const UserField: React.FC<FieldProps> = ({ form, setSelectedUser }) => {
-  const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredUsers = searchQuery === "" 
-    ? sampleUsers 
-    : sampleUsers.filter((user) => 
-        user.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-
   return (
     <FormField
       control={form.control}
       name="user"
       render={({ field }) => (
-        <FormItem className="flex flex-col">
+        <FormItem>
           <FormLabel>User</FormLabel>
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <FormControl>
-                <div
-                  className={cn(
-                    "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                    !field.value && "text-muted-foreground"
-                  )}
-                >
-                  {field.value ? field.value === "unassigned" ? "-- No user assigned --" : field.value : "Select user"}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </div>
-              </FormControl>
-            </PopoverTrigger>
-            <PopoverContent className="w-[300px] p-0">
-              <Command>
-                <CommandInput 
-                  placeholder="Search user..." 
-                  onValueChange={setSearchQuery} 
+          <div className="flex items-center gap-2">
+            <FormControl>
+              <div className="relative w-full">
+                <Input 
+                  {...field} 
+                  placeholder="Enter user name" 
+                  className="pl-8"
+                  onChange={(e) => {
+                    field.onChange(e.target.value);
+                    if (setSelectedUser) setSelectedUser(e.target.value);
+                  }}
                 />
-                <CommandEmpty>No user found.</CommandEmpty>
-                <CommandGroup className="max-h-[200px] overflow-y-auto">
-                  <CommandItem
-                    value="unassigned"
-                    onSelect={() => {
-                      form.setValue("user", "unassigned");
-                      if(setSelectedUser) setSelectedUser("unassigned");
-                      setOpen(false);
-                    }}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        field.value === "unassigned" ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    -- No user assigned --
-                  </CommandItem>
-                  {filteredUsers.map((user) => (
-                    <CommandItem
-                      key={user.name}
-                      value={user.name}
-                      onSelect={() => {
-                        form.setValue("user", user.name);
-                        if(setSelectedUser) setSelectedUser(user.name);
-                        setOpen(false);
-                      }}
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          field.value === user.name ? "opacity-100" : "opacity-0"
-                        )}
-                      />
-                      {user.name}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </Command>
-            </PopoverContent>
-          </Popover>
+                <User className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
+              </div>
+            </FormControl>
+          </div>
+          <FormDescription>Enter the name of the user this asset is assigned to, or leave blank if unassigned</FormDescription>
           <FormMessage />
         </FormItem>
       )}

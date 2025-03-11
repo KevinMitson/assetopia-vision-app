@@ -161,7 +161,7 @@ export const useAssetForm = (assetId?: string) => {
   }, [useCurrentUser, userProfile, form]);
 
   useEffect(() => {
-    if (selectedUser) {
+    if (selectedUser && selectedUser.trim() !== '') {
       const user = sampleUsers.find(u => u.name === selectedUser);
       if (user) {
         form.setValue('designation', user.designation);
@@ -177,7 +177,7 @@ export const useAssetForm = (assetId?: string) => {
     try {
       const assetNo = data.assetNo || (assetId ? currentAsset.asset_no : `AST${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
       
-      const userName = data.user === "unassigned" ? null : data.user || null;
+      const userName = !data.user || data.user.trim() === "" ? null : data.user.trim();
       
       let updatedHistory = false;
       
