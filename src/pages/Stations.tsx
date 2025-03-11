@@ -159,6 +159,7 @@ const getStatusColor = (utilization: number) => {
 
 const Stations = () => {
   const [selectedStation, setSelectedStation] = useState(stationData[0]);
+  const [activeTab, setActiveTab] = useState('overview');
   
   return (
     <Layout>
@@ -170,7 +171,12 @@ const Stations = () => {
           </div>
         </div>
         
-        <Tabs defaultValue="overview" className="space-y-4">
+        <Tabs 
+          defaultValue="overview" 
+          className="space-y-4"
+          value={activeTab}
+          onValueChange={setActiveTab}
+        >
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="distribution">Asset Distribution</TabsTrigger>
@@ -268,7 +274,10 @@ const Stations = () => {
                     <TabsTrigger 
                       key={station.id}
                       value={station.id}
-                      onClick={() => setSelectedStation(station)}
+                      onClick={() => {
+                        setSelectedStation(station);
+                        setActiveTab('details');
+                      }}
                       className={selectedStation.id === station.id ? 'bg-primary text-primary-foreground' : ''}
                     >
                       {station.name}
