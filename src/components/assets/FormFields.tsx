@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { AssetType } from '@/components/dashboard/types';
 import { assetTypeIcons, assetTypeFields, departments, departmentSections, locations, statuses, sampleUsers } from './constants';
@@ -337,13 +336,13 @@ export const DateField: React.FC<FieldProps & { name: 'purchaseDate' | 'lastMain
   />
 );
 
-export const NotesField: React.FC<FieldProps> = ({ form }) => (
+export const NotesField: React.FC<FieldProps & { label: string }> = ({ form, label }) => (
   <FormField
     control={form.control}
     name="notes"
     render={({ field }) => (
       <FormItem>
-        <FormLabel>Notes</FormLabel>
+        <FormLabel>{label}</FormLabel>
         <FormControl>
           <Textarea 
             placeholder="Enter any additional information about this asset" 
