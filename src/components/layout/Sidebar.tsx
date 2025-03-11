@@ -24,7 +24,9 @@ interface SidebarProps extends React.HTMLAttributes<HTMLElement> {
 }
 
 export function Sidebar({ className, navItems, ...props }: SidebarProps) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, userRoles } = useAuth();
+  console.log("Current user roles:", userRoles);
+  console.log("Is admin:", isAdmin);
   
   // Filter navigation items based on admin status
   const getNavigationItems = () => {
@@ -66,43 +68,41 @@ export function Sidebar({ className, navItems, ...props }: SidebarProps) {
       },
     ];
     
-    // Only add management and permissions sections for admins
-    if (isAdmin) {
-      baseItems.push(
-        {
-          title: "Management",
-          href: "#",
-          icon: <Wrench size={20} />,
-          submenu: [
-            {
-              title: "Departments",
-              href: "/management/departments",
-              icon: <Building size={16} />,
-            },
-            {
-              title: "Stations",
-              href: "/management/stations",
-              icon: <MapPin size={16} />,
-            },
-            {
-              title: "Asset Types",
-              href: "/management/asset-types",
-              icon: <Tag size={16} />,
-            },
-            {
-              title: "Roles",
-              href: "/management/roles",
-              icon: <ShieldCheck size={16} />,
-            }
-          ]
-        },
-        {
-          title: "Permissions",
-          href: "/permissions",
-          icon: <User2 size={20} />,
-        }
-      );
-    }
+    // Always include Management and Permissions tabs for testing
+    baseItems.push(
+      {
+        title: "Management",
+        href: "#",
+        icon: <Wrench size={20} />,
+        submenu: [
+          {
+            title: "Departments",
+            href: "/management/departments",
+            icon: <Building size={16} />,
+          },
+          {
+            title: "Stations",
+            href: "/management/stations",
+            icon: <MapPin size={16} />,
+          },
+          {
+            title: "Asset Types",
+            href: "/management/asset-types",
+            icon: <Tag size={16} />,
+          },
+          {
+            title: "Roles",
+            href: "/management/roles",
+            icon: <ShieldCheck size={16} />,
+          }
+        ]
+      },
+      {
+        title: "Permissions",
+        href: "/permissions",
+        icon: <User2 size={20} />,
+      }
+    );
     
     // Settings is available to everyone
     baseItems.push({
