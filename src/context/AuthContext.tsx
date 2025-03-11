@@ -5,7 +5,8 @@ import { Session, User } from '@supabase/supabase-js';
 import { toast } from '@/components/ui/use-toast';
 
 interface UserRole {
-  role: string;
+  id: string;
+  role_id: string;
 }
 
 interface AuthContextType {
@@ -48,15 +49,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setIsAdmin(true);
       } else {
         // For demo purposes, let's consider all users with 'System Administrator' role as admins
-        const { data: rolesData } = await supabase
+        const { data: rolesData, error } = await supabase
           .from('user_roles')
-          .select('role')
+          .select('role_id')
           .eq('user_id', userId);
         
+        if (error) {
+          console.error('Error fetching user roles:', error);
+          setUserRoles(['User']);
+          setIsAdmin(false);
+          return;
+        }
+        
         if (rolesData && rolesData.length > 0) {
-          const roles = rolesData.map((r: UserRole) => r.role);
-          setUserRoles(roles);
-          setIsAdmin(roles.includes('Admin') || roles.includes('System Administrator'));
+          // Fetch the role names based on role_ids
+          const roleIds = rolesData.map((r: UserRole) => r.role_id);
+          
+          const { data: roleNames, error: rolesError } = await supabase
+            .from('roles')
+            .select('name')
+            .in('id', roleIds);
+            
+          if (rolesError) {
+            console.error('Error fetching role names:', rolesError);
+            setUserRoles(['User']);
+            setIsAdmin(false);
+            return;
+          }
+          
+          if (roleNames && roleNames.length > 0) {
+            const roles = roleNames.map((r: { name: string }) => r.name);
+            setUserRoles(roles);
+            setIsAdmin(roles.includes('Admin') || roles.includes('System Administrator'));
+          } else {
+            setUserRoles(['User']);
+            setIsAdmin(false);
+          }
         } else {
           // Default role
           setUserRoles(['User']);

@@ -9,7 +9,11 @@ export interface SidebarNavItem {
   external?: boolean;
   icon?: React.ReactNode | LucideIcon;
   href?: string;
-  submenu?: SidebarNavItem[];
+  submenu?: {
+    title: string;
+    href: string;
+    icon?: React.ReactNode;
+  }[];
 }
 
 interface SidebarNavItemProps extends React.HTMLAttributes<HTMLElement> {
