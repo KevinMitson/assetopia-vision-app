@@ -32,6 +32,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Super admin credentials for development/testing
+const SUPER_ADMIN = {
+  email: 'kevin.mitson@example.com',
+  password: 'password',
+  name: 'Kevin Mitson'
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -41,6 +48,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUserRoles = async (userId: string) => {
     try {
+      // Check if the user is our super admin
+      if (user?.email === SUPER_ADMIN.email) {
+        setUserRoles(['Admin', 'Super Admin']);
+        setIsAdmin(true);
+        return;
+      }
+      
       // In a real application, this would fetch from a 'user_roles' table
       // For now, we're using mock data for demonstration
       // Mock admin for testing (userId starting with 'a' is admin)
@@ -132,6 +146,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Check for superadmin credentials
+      if (email === SUPER_ADMIN.email && password === SUPER_ADMIN.password) {
+        // Create a mock session for superadmin without actually authenticating with Supabase
+        const mockUser = {
+          id: 'super-admin-id',
+          email: SUPER_ADMIN.email,
+          user_metadata: {
+            full_name: SUPER_ADMIN.name,
+          },
+        } as User;
+        
+        const mockSession = {
+          user: mockUser,
+          access_token: 'mock-token',
+          refresh_token: 'mock-refresh-token',
+          expires_at: Date.now() + 3600 * 1000,
+        } as Session;
+        
+        setUser(mockUser);
+        setSession(mockSession);
+        setUserRoles(['Admin', 'Super Admin']);
+        setIsAdmin(true);
+        
+        toast({
+          title: "Welcome Super Admin",
+          description: "You are logged in as Super Admin",
+        });
+        
+        return { error: null, data: mockSession };
+      }
+      
+      // Regular Supabase authentication for other users
       const response = await supabase.auth.signInWithPassword({
         email,
         password,
