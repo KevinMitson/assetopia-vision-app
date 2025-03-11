@@ -45,14 +45,15 @@ const App = () => (
             <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
             <Route path="/stations" element={<ProtectedRoute><Stations /></ProtectedRoute>} />
             <Route path="/personnel" element={<ProtectedRoute><Personnel /></ProtectedRoute>} />
-            <Route path="/permissions" element={<ProtectedRoute><Permissions /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             
-            {/* Management Routes */}
-            <Route path="/management/departments" element={<ProtectedRoute><ManageDepartments /></ProtectedRoute>} />
-            <Route path="/management/stations" element={<ProtectedRoute><ManageStations /></ProtectedRoute>} />
-            <Route path="/management/asset-types" element={<ProtectedRoute><ManageAssetTypes /></ProtectedRoute>} />
-            <Route path="/management/roles" element={<ProtectedRoute><ManageRoles /></ProtectedRoute>} />
+            {/* Admin Only Routes */}
+            <Route path="/permissions" element={<ProtectedRoute requireAdmin={true}><Permissions /></ProtectedRoute>} />
+            <Route path="/management/departments" element={<ProtectedRoute requireAdmin={true}><ManageDepartments /></ProtectedRoute>} />
+            <Route path="/management/stations" element={<ProtectedRoute requireAdmin={true}><ManageStations /></ProtectedRoute>} />
+            <Route path="/management/asset-types" element={<ProtectedRoute requireAdmin={true}><ManageAssetTypes /></ProtectedRoute>} />
+            <Route path="/management/roles" element={<ProtectedRoute requireAdmin={true}><ManageRoles /></ProtectedRoute>} />
+            
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>

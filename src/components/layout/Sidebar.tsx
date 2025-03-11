@@ -2,11 +2,9 @@
 import {
   BarChart3,
   Home,
-  LayoutDashboard,
   Map,
   Package,
   Settings,
-  User,
   User2,
   Users,
   Building,
@@ -19,13 +17,104 @@ import {
 import { MainNav } from "@/components/main-nav";
 import { SidebarNavItem } from "@/components/nav";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/context/AuthContext";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLElement> {
   navItems?: SidebarNavItem[];
 }
 
 export function Sidebar({ className, navItems, ...props }: SidebarProps) {
-  const routes = navItems || navigationItems;
+  const { isAdmin } = useAuth();
+  
+  // Filter navigation items based on admin status
+  const getNavigationItems = () => {
+    const baseItems = [
+      {
+        title: "Dashboard",
+        href: "/",
+        icon: <Home size={20} />,
+      },
+      {
+        title: "Stations",
+        href: "/stations",
+        icon: <Map size={20} />,
+      },
+      {
+        title: "Assets",
+        href: "/assets",
+        icon: <Package size={20} />,
+        submenu: [
+          {
+            title: "View All",
+            href: "/assets",
+          },
+          {
+            title: "Add New",
+            href: "/assets/add",
+          }
+        ]
+      },
+      {
+        title: "Inventory",
+        href: "/inventory",
+        icon: <BarChart3 size={20} />,
+      },
+      {
+        title: "Personnel",
+        href: "/personnel",
+        icon: <Users size={20} />,
+      },
+    ];
+    
+    // Only add management and permissions sections for admins
+    if (isAdmin) {
+      baseItems.push(
+        {
+          title: "Management",
+          href: "#",
+          icon: <Wrench size={20} />,
+          submenu: [
+            {
+              title: "Departments",
+              href: "/management/departments",
+              icon: <Building size={16} />,
+            },
+            {
+              title: "Stations",
+              href: "/management/stations",
+              icon: <MapPin size={16} />,
+            },
+            {
+              title: "Asset Types",
+              href: "/management/asset-types",
+              icon: <Tag size={16} />,
+            },
+            {
+              title: "Roles",
+              href: "/management/roles",
+              icon: <ShieldCheck size={16} />,
+            }
+          ]
+        },
+        {
+          title: "Permissions",
+          href: "/permissions",
+          icon: <User2 size={20} />,
+        }
+      );
+    }
+    
+    // Settings is available to everyone
+    baseItems.push({
+      title: "Settings",
+      href: "/settings",
+      icon: <Settings size={20} />,
+    });
+    
+    return baseItems;
+  };
+
+  const routes = navItems || getNavigationItems();
 
   return (
     <div
@@ -71,78 +160,3 @@ export function Sidebar({ className, navItems, ...props }: SidebarProps) {
     </div>
   );
 }
-
-const navigationItems = [
-  {
-    title: "Dashboard",
-    href: "/",
-    icon: <Home size={20} />,
-  },
-  {
-    title: "Stations",
-    href: "/stations",
-    icon: <Map size={20} />,
-  },
-  {
-    title: "Assets",
-    href: "/assets",
-    icon: <Package size={20} />,
-    submenu: [
-      {
-        title: "View All",
-        href: "/assets",
-      },
-      {
-        title: "Add New",
-        href: "/assets/add",
-      }
-    ]
-  },
-  {
-    title: "Inventory",
-    href: "/inventory",
-    icon: <BarChart3 size={20} />,
-  },
-  {
-    title: "Personnel",
-    href: "/personnel",
-    icon: <Users size={20} />,
-  },
-  {
-    title: "Management",
-    href: "#",
-    icon: <Wrench size={20} />,
-    submenu: [
-      {
-        title: "Departments",
-        href: "/management/departments",
-        icon: <Building size={16} />,
-      },
-      {
-        title: "Stations",
-        href: "/management/stations",
-        icon: <MapPin size={16} />,
-      },
-      {
-        title: "Asset Types",
-        href: "/management/asset-types",
-        icon: <Tag size={16} />,
-      },
-      {
-        title: "Roles",
-        href: "/management/roles",
-        icon: <ShieldCheck size={16} />,
-      }
-    ]
-  },
-  {
-    title: "Permissions",
-    href: "/permissions",
-    icon: <User2 size={20} />,
-  },
-  {
-    title: "Settings",
-    href: "/settings",
-    icon: <Settings size={20} />,
-  },
-];
