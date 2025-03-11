@@ -24,6 +24,8 @@ export const assetFormSchema = z.object({
   nextMaintenance: z.string().optional(),
   notes: z.string().optional(),
   useCurrentUser: z.boolean().default(false),
+  transferReason: z.string().optional(),
+  condition: z.string().optional(),
 });
 
 export type AssetFormValues = z.infer<typeof assetFormSchema>;
@@ -34,4 +36,5 @@ export interface AssignmentHistory {
   from: string;
   to: string | null;
   reason: string;
+  condition?: string;
 }
