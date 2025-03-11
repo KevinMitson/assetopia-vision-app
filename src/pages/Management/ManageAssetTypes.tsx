@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2, X, Check, Plus } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { assetTypeIcons, assetTypeFields, AssetType } from '@/components/dashboard/types';
+import { Badge } from '@/components/ui/badge';
+import { AssetType } from '@/components/dashboard/types';
+import { assetTypeIcons, assetTypeFields } from '@/components/assets/constants';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
