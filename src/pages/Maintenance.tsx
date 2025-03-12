@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlusCircle, FileSpreadsheet, Search } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { fetchMaintenanceRecords, MaintenanceRecord } from '@/lib/maintenanceService';
-import { fetchAllUsers, User } from '@/lib/userService';
+import { fetchAllUsers } from '@/lib/userService';
+import { User } from '@/types';
 import { MaintenanceReportDialog } from '@/components/maintenance/MaintenanceReportDialog';
 import { Input } from '@/components/ui/input';
 import { 
@@ -50,6 +51,7 @@ const Maintenance = () => {
         maintenanceType: maintenanceType === 'all' ? undefined : maintenanceType as any,
         startDate: startDate ? format(startDate, 'yyyy-MM-dd') : undefined,
         endDate: endDate ? format(endDate, 'yyyy-MM-dd') : undefined,
+        searchQuery: searchQuery.trim() !== '' ? searchQuery : undefined,
         limit: recordsPerPage,
         offset
       });
@@ -99,16 +101,15 @@ const Maintenance = () => {
     fetchUsers();
   }, []);
 
-  // Refetch when filters change
+  // Refetch when filters change, but not when search query changes
+  // (we want to trigger search only when the button is clicked)
   useEffect(() => {
     fetchRecords(1); // Reset to first page when filters change
   }, [selectedAssetId, selectedTechnicianId, maintenanceType, startDate, endDate]);
 
   // Handle search
   const handleSearch = () => {
-    // For simplicity, we're just refetching with the current filters
-    // In a real implementation, you might want to add a search parameter to the API
-    fetchRecords(1);
+    fetchRecords(1); // Reset to first page when searching
   };
 
   // Reset filters

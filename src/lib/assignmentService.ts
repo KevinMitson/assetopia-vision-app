@@ -47,15 +47,47 @@ export async function fetchAssetAssignments(assetId: string) {
       ...assignmentData.map(a => a.assigned_by)
     ])];
     
-    // Fetch user data for these IDs
+    // Fetch user data for these IDs - try profiles table first
     const { data: userData, error: userError } = await supabase
-      .from('users')
+      .from('profiles')
       .select('id, full_name, email')
       .in('id', userIds);
     
     if (userError) {
-      console.error('Error fetching user data:', userError);
-      // Continue with the assignments even if we can't get user data
+      console.error('Error fetching user data from profiles:', userError);
+      
+      // Try user_roles table as fallback
+      const { data: userRolesData, error: userRolesError } = await supabase
+        .from('user_roles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+        
+      if (userRolesError) {
+        console.error('Error fetching user data from user_roles:', userRolesError);
+        // Continue with the assignments even if we can't get user data
+      } else if (userRolesData && userRolesData.length > 0) {
+        // Create a map of user IDs to user data
+        const userMap = new Map();
+        userRolesData.forEach(user => {
+          userMap.set(user.id, user);
+        });
+        
+        // Enhance the assignments with user data
+        const assignments = assignmentData.map(assignment => {
+          const assignedToUser = userMap.get(assignment.assigned_to);
+          const assignedByUser = userMap.get(assignment.assigned_by);
+          
+          return {
+            ...assignment,
+            assigned_to_user: assignedToUser,
+            assigned_by_user: assignedByUser,
+            assigned_to_name: assignedToUser?.full_name || 'Unknown',
+            assigned_by_name: assignedByUser?.full_name || 'Unknown'
+          };
+        });
+        
+        return { assignments, error: null };
+      }
     }
     
     // Create a map of user IDs to user data

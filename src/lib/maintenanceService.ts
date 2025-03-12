@@ -228,6 +228,7 @@ export async function fetchMaintenanceRecords({
   maintenanceType,
   startDate,
   endDate,
+  searchQuery,
   limit = 100,
   offset = 0
 }: {
@@ -236,6 +237,7 @@ export async function fetchMaintenanceRecords({
   maintenanceType?: MaintenanceRecord['maintenance_type'];
   startDate?: string;
   endDate?: string;
+  searchQuery?: string;
   limit?: number;
   offset?: number;
 }) {
@@ -263,6 +265,16 @@ export async function fetchMaintenanceRecords({
     
     if (endDate) {
       query = query.lte('date_performed', endDate);
+    }
+    
+    // Apply text search if provided
+    if (searchQuery && searchQuery.trim() !== '') {
+      query = query.or(`
+        technician_name.ilike.%${searchQuery}%,
+        additional_comments.ilike.%${searchQuery}%,
+        parts_replaced.ilike.%${searchQuery}%,
+        software_updated.ilike.%${searchQuery}%
+      `);
     }
     
     // Apply pagination
