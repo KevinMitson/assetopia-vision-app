@@ -8,8 +8,22 @@ import { User } from '@/types';
  */
 export async function fetchAllUsers() {
   try {
+    console.log('Fetching users from user_roles...');
+    
+    // First check if the roles table exists
+    const { data: rolesExist, error: rolesCheckError } = await supabase
+      .from('roles')
+      .select('count(*)')
+      .limit(1);
+      
+    if (rolesCheckError) {
+      console.error('Error checking roles table:', rolesCheckError);
+      // Create roles table if it doesn't exist
+      await supabase.rpc('create_roles_if_not_exists');
+    }
+    
     // Fetch users from user_roles with joined user data
-    const { data: roleUsers, error: roleError } = await (supabase as any)
+    const { data: roleUsers, error: roleError } = await supabase
       .from('user_roles')
       .select(`
         user_id,
@@ -17,16 +31,43 @@ export async function fetchAllUsers() {
         users:auth.users!user_id (
           id,
           email,
+          raw_user_meta_data,
           created_at,
           updated_at
         ),
         roles (
+          id,
           name
         )
       `)
-      .order('users.email');
+      .order('user_id');
 
     if (roleError) {
+      console.error('Error fetching role users:', roleError);
+      
+      // If there's an error, try a simpler query without the join
+      const { data: simpleRoleUsers, error: simpleRoleError } = await supabase
+        .from('user_roles')
+        .select('user_id, role_id');
+        
+      if (simpleRoleError) {
+        throw simpleRoleError;
+      }
+      
+      // If we got simple role users but no detailed data, return minimal user objects
+      if (simpleRoleUsers && simpleRoleUsers.length > 0) {
+        console.log('Returning minimal user data without joins');
+        const minimalUsers = simpleRoleUsers.map(ru => ({
+          id: ru.user_id,
+          full_name: `User ${ru.user_id.substring(0, 8)}`,
+          role_id: ru.role_id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+        
+        return { users: minimalUsers as User[], error: null };
+      }
+      
       throw roleError;
     }
 
@@ -39,15 +80,23 @@ export async function fetchAllUsers() {
     // Transform role users to match the User interface
     const transformedUsers = roleUsers
       .filter(ru => ru.users) // Filter out any null users
-      .map(ru => ({
-        id: ru.user_id,
-        full_name: ru.users.email?.split('@')[0] || ru.user_id, // Use email username as full_name
-        email: ru.users.email,
-        role_id: ru.role_id,
-        role_name: ru.roles?.name || 'User',
-        created_at: ru.users.created_at || new Date().toISOString(),
-        updated_at: ru.users.updated_at || new Date().toISOString()
-      }));
+      .map(ru => {
+        // Extract user metadata
+        const metadata = ru.users.raw_user_meta_data || {};
+        
+        return {
+          id: ru.user_id,
+          full_name: metadata.full_name || ru.users.email?.split('@')[0] || ru.user_id.substring(0, 8),
+          email: ru.users.email,
+          department: metadata.department,
+          station: metadata.station,
+          designation: metadata.designation,
+          role_id: ru.role_id,
+          role_name: ru.roles?.name || 'User',
+          created_at: ru.users.created_at || new Date().toISOString(),
+          updated_at: ru.users.updated_at || new Date().toISOString()
+        };
+      });
 
     console.log('Transformed users:', transformedUsers.length);
 
@@ -64,14 +113,15 @@ export async function fetchAllUsers() {
 export async function checkUserExists(email: string) {
   try {
     // Check if user exists in auth.users
-    const { data: authUser, error: authError } = await (supabase as any)
+    const { data: authUser, error: authError } = await supabase
       .from('auth.users')
       .select('id')
       .eq('email', email)
       .maybeSingle();
 
     if (authError) {
-      throw authError;
+      console.error('Error checking auth.users:', authError);
+      return { exists: false, userId: null, error: null };
     }
 
     if (!authUser) {
@@ -79,14 +129,15 @@ export async function checkUserExists(email: string) {
     }
 
     // Check if user exists in user_roles
-    const { data: roleUser, error: roleError } = await (supabase as any)
+    const { data: roleUser, error: roleError } = await supabase
       .from('user_roles')
       .select('user_id')
       .eq('user_id', authUser.id)
       .maybeSingle();
 
     if (roleError) {
-      throw roleError;
+      console.error('Error checking user_roles:', roleError);
+      return { exists: false, userId: authUser.id, error: null };
     }
 
     return { 
@@ -127,53 +178,99 @@ export async function addUser(userData: {
     
     // If user doesn't exist in auth.users, create them
     if (!exists && !authUserId) {
-      // Create user in auth.users
-      const { data: authData, error: authError } = await (supabase as any).auth.admin.createUser({
-        email: userData.email,
-        email_confirm: true,
-        user_metadata: {
-          full_name: userData.full_name,
-          department: userData.department,
-          designation: userData.designation,
-          station: userData.station
+      try {
+        // Try to use the admin API first
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: userData.email,
+          email_confirm: true,
+          user_metadata: {
+            full_name: userData.full_name,
+            department: userData.department,
+            designation: userData.designation,
+            station: userData.station
+          }
+        });
+        
+        if (authError) {
+          throw authError;
         }
-      });
-      
-      if (authError) {
-        throw authError;
+        
+        authUserId = authData.user.id;
+      } catch (adminError) {
+        console.error('Error using admin API, falling back to RPC:', adminError);
+        
+        // Fall back to using an RPC function
+        const { data: rpcData, error: rpcError } = await supabase.rpc('create_user', {
+          p_email: userData.email,
+          p_full_name: userData.full_name,
+          p_department: userData.department || null,
+          p_station: userData.station || null,
+          p_designation: userData.designation || null
+        });
+        
+        if (rpcError) {
+          throw rpcError;
+        }
+        
+        authUserId = rpcData;
       }
-      
-      authUserId = authData.user.id;
+    }
+    
+    if (!authUserId) {
+      throw new Error('Failed to create or find user');
     }
     
     // Get default role if none provided
     let roleId = userData.role_id;
     if (!roleId) {
-      const { data: defaultRole, error: roleError } = await (supabase as any)
+      const { data: defaultRole, error: roleError } = await supabase
         .from('roles')
         .select('id')
         .eq('name', 'User')
         .maybeSingle();
         
       if (roleError) {
-        throw roleError;
+        console.error('Error fetching default role:', roleError);
+        
+        // Try to create roles table if it doesn't exist
+        await supabase.rpc('create_roles_if_not_exists');
+        
+        // Try again
+        const { data: retryRole } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', 'User')
+          .maybeSingle();
+          
+        roleId = retryRole?.id;
+      } else {
+        roleId = defaultRole?.id;
       }
-      
-      roleId = defaultRole?.id;
       
       if (!roleId) {
         // Get any role if 'User' role doesn't exist
-        const { data: anyRole, error: anyRoleError } = await (supabase as any)
+        const { data: anyRole } = await supabase
           .from('roles')
           .select('id')
           .limit(1)
           .single();
           
-        if (anyRoleError) {
-          throw anyRoleError;
-        }
+        roleId = anyRole?.id;
         
-        roleId = anyRole.id;
+        // If still no role, create one
+        if (!roleId) {
+          const { data: newRole, error: newRoleError } = await supabase
+            .from('roles')
+            .insert({ name: 'User', description: 'Regular user with limited access' })
+            .select('id')
+            .single();
+            
+          if (newRoleError) {
+            throw newRoleError;
+          }
+          
+          roleId = newRole.id;
+        }
       }
     }
     
@@ -182,7 +279,7 @@ export async function addUser(userData: {
     }
     
     // Add user to user_roles
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('user_roles')
       .insert({
         user_id: authUserId,
@@ -192,7 +289,12 @@ export async function addUser(userData: {
       .single();
     
     if (error) {
-      throw error;
+      // Check if it's a unique constraint violation (user already has this role)
+      if (error.code === '23505') {
+        console.log('User already has this role, continuing...');
+      } else {
+        throw error;
+      }
     }
     
     // Return the complete user data
@@ -225,21 +327,105 @@ export async function updateUser(
   updates: Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>
 ) {
   try {
-    const { data, error } = await (supabase as any)
-      .from('standalone_users')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId)
-      .select()
-      .single();
+    // Update user metadata in auth.users
+    const { error: authError } = await supabase.auth.admin.updateUserById(
+      userId,
+      {
+        user_metadata: {
+          full_name: updates.full_name,
+          department: updates.department,
+          designation: updates.designation,
+          station: updates.station
+        }
+      }
+    );
     
-    if (error) {
-      throw error;
+    if (authError) {
+      throw authError;
     }
     
-    return { success: true, user: data as User, error: null };
+    // If role_id is provided, update user_roles
+    if (updates.role_id) {
+      // First, check if user already has this role
+      const { data: existingRole, error: checkError } = await supabase
+        .from('user_roles')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('role_id', updates.role_id)
+        .maybeSingle();
+        
+      if (checkError) {
+        throw checkError;
+      }
+      
+      // If user doesn't have this role, update it
+      if (!existingRole) {
+        // Delete existing roles for this user
+        const { error: deleteError } = await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+          
+        if (deleteError) {
+          throw deleteError;
+        }
+        
+        // Add new role
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: userId,
+            role_id: updates.role_id
+          });
+          
+        if (insertError) {
+          throw insertError;
+        }
+      }
+    }
+    
+    // Get updated user data
+    const { data: userData, error: getUserError } = await supabase
+      .from('user_roles')
+      .select(`
+        user_id,
+        role_id,
+        users:auth.users!user_id (
+          id,
+          email,
+          raw_user_meta_data,
+          created_at,
+          updated_at
+        ),
+        roles (
+          name
+        )
+      `)
+      .eq('user_id', userId)
+      .single();
+      
+    if (getUserError) {
+      throw getUserError;
+    }
+    
+    const metadata = userData.users.raw_user_meta_data || {};
+    
+    return { 
+      success: true, 
+      user: {
+        id: userData.user_id,
+        full_name: metadata.full_name || userData.users.email?.split('@')[0] || '',
+        email: userData.users.email,
+        department: metadata.department,
+        station: metadata.station,
+        designation: metadata.designation,
+        role_id: userData.role_id,
+        role_name: userData.roles?.name,
+        created_at: userData.users.created_at,
+        updated_at: userData.users.updated_at
+      } as User, 
+      error: null 
+    };
   } catch (error: any) {
     console.error('Error updating user:', error);
     return { success: false, user: null, error: error.message };
