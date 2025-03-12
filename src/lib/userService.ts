@@ -22,7 +22,21 @@ export async function fetchAllUsers() {
       await supabase.rpc('create_roles_if_not_exists');
     }
     
+    // Try a direct query to auth.users first to check if we can access it
+    const { data: authUsers, error: authError } = await supabase
+      .from('auth.users')
+      .select('id, email, raw_user_meta_data')
+      .limit(1);
+      
+    if (authError) {
+      console.error('Error accessing auth.users directly:', authError);
+      // This might indicate permission issues
+    } else {
+      console.log('Successfully accessed auth.users:', authUsers);
+    }
+    
     // Fetch users from user_roles with joined user data
+    console.log('Attempting to fetch user_roles with joins...');
     const { data: roleUsers, error: roleError } = await supabase
       .from('user_roles')
       .select(`
@@ -43,35 +57,105 @@ export async function fetchAllUsers() {
       .order('user_id');
 
     if (roleError) {
-      console.error('Error fetching role users:', roleError);
+      console.error('Error fetching role users with joins:', roleError);
       
-      // If there's an error, try a simpler query without the join
+      // Try a simpler query to user_roles without joins
+      console.log('Trying simpler query without joins...');
       const { data: simpleRoleUsers, error: simpleRoleError } = await supabase
         .from('user_roles')
-        .select('user_id, role_id');
+        .select('*');
         
       if (simpleRoleError) {
+        console.error('Error with simple user_roles query:', simpleRoleError);
         throw simpleRoleError;
       }
       
-      // If we got simple role users but no detailed data, return minimal user objects
+      console.log('Simple user_roles query succeeded:', simpleRoleUsers?.length || 0, 'records');
+      
+      // If we got simple role users but no detailed data, try to fetch user data separately
       if (simpleRoleUsers && simpleRoleUsers.length > 0) {
-        console.log('Returning minimal user data without joins');
-        const minimalUsers = simpleRoleUsers.map(ru => ({
-          id: ru.user_id,
-          full_name: `User ${ru.user_id.substring(0, 8)}`,
-          role_id: ru.role_id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }));
+        console.log('Attempting to fetch user data separately for each user_role...');
         
-        return { users: minimalUsers as User[], error: null };
+        const enhancedUsers = [];
+        
+        for (const roleUser of simpleRoleUsers) {
+          // Get user data
+          const { data: userData, error: userError } = await supabase
+            .from('auth.users')
+            .select('id, email, raw_user_meta_data, created_at, updated_at')
+            .eq('id', roleUser.user_id)
+            .single();
+            
+          if (userError) {
+            console.error(`Error fetching user data for ${roleUser.user_id}:`, userError);
+            continue;
+          }
+          
+          // Get role data
+          const { data: roleData, error: roleDataError } = await supabase
+            .from('roles')
+            .select('id, name')
+            .eq('id', roleUser.role_id)
+            .single();
+            
+          if (roleDataError) {
+            console.error(`Error fetching role data for ${roleUser.role_id}:`, roleDataError);
+          }
+          
+          // Extract metadata
+          let metadata: {
+            full_name?: string;
+            department?: string;
+            station?: string;
+            designation?: string;
+            [key: string]: any;
+          } = {};
+          
+          try {
+            if (userData?.raw_user_meta_data) {
+              if (typeof userData.raw_user_meta_data === 'string') {
+                metadata = JSON.parse(userData.raw_user_meta_data);
+              } else {
+                metadata = userData.raw_user_meta_data;
+              }
+            }
+          } catch (e) {
+            console.error('Error parsing metadata:', e);
+          }
+          
+          // Create enhanced user object
+          enhancedUsers.push({
+            id: roleUser.user_id,
+            full_name: metadata.full_name || userData?.email?.split('@')[0] || `User ${roleUser.user_id.substring(0, 8)}`,
+            email: userData?.email,
+            department: metadata.department,
+            station: metadata.station,
+            designation: metadata.designation,
+            role_id: roleUser.role_id,
+            role_name: roleData?.name || 'User',
+            created_at: userData?.created_at || new Date().toISOString(),
+            updated_at: userData?.updated_at || new Date().toISOString()
+          });
+        }
+        
+        console.log('Successfully built enhanced users:', enhancedUsers.length);
+        return { users: enhancedUsers as User[], error: null };
       }
       
-      throw roleError;
+      // If all else fails, return minimal data
+      console.log('Returning minimal user data as fallback');
+      const minimalUsers = simpleRoleUsers.map(ru => ({
+        id: ru.user_id,
+        full_name: `User ${ru.user_id.substring(0, 8)}`,
+        role_id: ru.role_id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }));
+      
+      return { users: minimalUsers as User[], error: null };
     }
 
-    console.log('Role users fetched:', roleUsers?.length || 0);
+    console.log('Role users fetched with joins:', roleUsers?.length || 0);
     
     // Debug: Log the first user to see its structure
     if (roleUsers && roleUsers.length > 0) {
@@ -511,5 +595,78 @@ export async function importUsers(users: any[]) {
       failed: users.length,
       errors: [error.message]
     };
+  }
+}
+
+/**
+ * Debug function to directly check user data from Supabase
+ */
+export async function debugUserData() {
+  try {
+    console.log('DEBUG: Checking direct user data from Supabase...');
+    
+    // Direct query to auth.users
+    const { data: authUsers, error: authError } = await supabase
+      .from('auth.users')
+      .select('id, email, raw_user_meta_data')
+      .limit(5);
+      
+    if (authError) {
+      console.error('DEBUG: Error fetching auth users:', authError);
+    } else {
+      console.log('DEBUG: Auth users data:', authUsers);
+    }
+    
+    // Direct query to user_roles with joins
+    const { data: roleUsers, error: roleError } = await supabase
+      .from('user_roles')
+      .select(`
+        id,
+        user_id,
+        role_id,
+        users:auth.users!user_id (
+          id, 
+          email,
+          raw_user_meta_data
+        ),
+        roles (
+          id,
+          name
+        )
+      `)
+      .limit(5);
+      
+    if (roleError) {
+      console.error('DEBUG: Error fetching role users:', roleError);
+    } else {
+      console.log('DEBUG: Role users data:', roleUsers);
+      
+      // Try to manually parse the first user's metadata
+      if (roleUsers && roleUsers.length > 0) {
+        const firstUser = roleUsers[0];
+        console.log('DEBUG: First user raw data:', firstUser);
+        
+        if (firstUser.users && firstUser.users.raw_user_meta_data) {
+          let metadata;
+          try {
+            if (typeof firstUser.users.raw_user_meta_data === 'string') {
+              metadata = JSON.parse(firstUser.users.raw_user_meta_data);
+            } else {
+              metadata = firstUser.users.raw_user_meta_data;
+            }
+            console.log('DEBUG: Parsed metadata:', metadata);
+          } catch (e) {
+            console.error('DEBUG: Error parsing metadata:', e);
+          }
+        } else {
+          console.log('DEBUG: No metadata found for first user');
+        }
+      }
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('DEBUG: Error in debugUserData:', error);
+    return { success: false, error };
   }
 } 

@@ -37,7 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { fetchAllUsers } from '@/lib/userService';
+import { fetchAllUsers, debugUserData } from '@/lib/userService';
 import { User } from '@/types';
 
 export default function Users() {
@@ -168,6 +168,25 @@ export default function Users() {
     filterRole
   ].filter(Boolean).length;
 
+  const handleDebug = async () => {
+    try {
+      await debugUserData();
+      toast({
+        title: "Debug Complete",
+        description: "Check the browser console for debug information",
+      });
+      // Force refresh the users data
+      fetchUsers();
+    } catch (error) {
+      console.error("Debug error:", error);
+      toast({
+        title: "Debug Error",
+        description: "An error occurred during debugging",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -180,6 +199,9 @@ export default function Users() {
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add User
+          </Button>
+          <Button variant="outline" onClick={handleDebug} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800">
+            Debug Data
           </Button>
         </div>
       </div>
