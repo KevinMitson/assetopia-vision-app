@@ -26,26 +26,59 @@ export interface AssetAssignment {
  */
 export async function fetchAssetAssignments(assetId: string) {
   try {
-    const { data, error } = await supabase
+    // First fetch the assignments
+    const { data: assignmentData, error: assignmentError } = await supabase
       .from('asset_assignments')
-      .select(`
-        *,
-        assigned_to_user:users!assigned_to(id, full_name, email),
-        assigned_by_user:users!assigned_by(id, full_name, email)
-      `)
+      .select('*')
       .eq('asset_id', assetId)
       .order('assignment_date', { ascending: false });
     
-    if (error) {
-      throw error;
+    if (assignmentError) {
+      throw assignmentError;
     }
     
-    // Transform the data to match the expected format
-    const assignments = data.map(assignment => ({
-      ...assignment,
-      assigned_to_name: assignment.assigned_to_user?.full_name || 'Unknown',
-      assigned_by_name: assignment.assigned_by_user?.full_name || 'Unknown'
-    }));
+    if (!assignmentData || assignmentData.length === 0) {
+      return { assignments: [], error: null };
+    }
+    
+    // Get all unique user IDs from the assignments
+    const userIds = [...new Set([
+      ...assignmentData.map(a => a.assigned_to),
+      ...assignmentData.map(a => a.assigned_by)
+    ])];
+    
+    // Fetch user data for these IDs
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, full_name, email')
+      .in('id', userIds);
+    
+    if (userError) {
+      console.error('Error fetching user data:', userError);
+      // Continue with the assignments even if we can't get user data
+    }
+    
+    // Create a map of user IDs to user data
+    const userMap = new Map();
+    if (userData) {
+      userData.forEach(user => {
+        userMap.set(user.id, user);
+      });
+    }
+    
+    // Enhance the assignments with user data
+    const assignments = assignmentData.map(assignment => {
+      const assignedToUser = userMap.get(assignment.assigned_to);
+      const assignedByUser = userMap.get(assignment.assigned_by);
+      
+      return {
+        ...assignment,
+        assigned_to_user: assignedToUser,
+        assigned_by_user: assignedByUser,
+        assigned_to_name: assignedToUser?.full_name || 'Unknown',
+        assigned_by_name: assignedByUser?.full_name || 'Unknown'
+      };
+    });
     
     return { assignments, error: null };
   } catch (error: any) {
@@ -59,25 +92,74 @@ export async function fetchAssetAssignments(assetId: string) {
  */
 export async function fetchActiveAssignments() {
   try {
-    const { data, error } = await supabase
+    // First fetch the active assignments
+    const { data: assignmentData, error: assignmentError } = await supabase
       .from('asset_assignments')
-      .select(`
-        *,
-        assigned_to_user:users!assigned_to(id, full_name, email),
-        assets(id, asset_no, equipment)
-      `)
+      .select('*')
       .eq('status', 'Active')
       .order('assignment_date', { ascending: false });
     
-    if (error) {
-      throw error;
+    if (assignmentError) {
+      throw assignmentError;
     }
     
-    // Transform the data to match the expected format
-    const assignments = data.map(assignment => ({
-      ...assignment,
-      assigned_to_name: assignment.assigned_to_user?.full_name || 'Unknown'
-    }));
+    if (!assignmentData || assignmentData.length === 0) {
+      return { assignments: [], error: null };
+    }
+    
+    // Get all unique user IDs and asset IDs from the assignments
+    const userIds = [...new Set(assignmentData.map(a => a.assigned_to))];
+    const assetIds = [...new Set(assignmentData.map(a => a.asset_id))];
+    
+    // Fetch user data for these IDs
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, full_name, email')
+      .in('id', userIds);
+    
+    if (userError) {
+      console.error('Error fetching user data:', userError);
+      // Continue with the assignments even if we can't get user data
+    }
+    
+    // Fetch asset data for these IDs
+    const { data: assetData, error: assetError } = await supabase
+      .from('assets')
+      .select('id, asset_no, equipment')
+      .in('id', assetIds);
+    
+    if (assetError) {
+      console.error('Error fetching asset data:', assetError);
+      // Continue with the assignments even if we can't get asset data
+    }
+    
+    // Create maps of user IDs and asset IDs to their data
+    const userMap = new Map();
+    if (userData) {
+      userData.forEach(user => {
+        userMap.set(user.id, user);
+      });
+    }
+    
+    const assetMap = new Map();
+    if (assetData) {
+      assetData.forEach(asset => {
+        assetMap.set(asset.id, asset);
+      });
+    }
+    
+    // Enhance the assignments with user and asset data
+    const assignments = assignmentData.map(assignment => {
+      const assignedToUser = userMap.get(assignment.assigned_to);
+      const asset = assetMap.get(assignment.asset_id);
+      
+      return {
+        ...assignment,
+        assigned_to_user: assignedToUser,
+        assigned_to_name: assignedToUser?.full_name || 'Unknown',
+        assets: asset
+      };
+    });
     
     return { assignments, error: null };
   } catch (error: any) {
@@ -91,20 +173,54 @@ export async function fetchActiveAssignments() {
  */
 export async function fetchUserAssignments(userId: string) {
   try {
-    const { data, error } = await supabase
+    // First fetch the assignments for this user
+    const { data: assignmentData, error: assignmentError } = await supabase
       .from('asset_assignments')
-      .select(`
-        *,
-        assets(id, asset_no, equipment, department, station)
-      `)
+      .select('*')
       .eq('assigned_to', userId)
       .order('assignment_date', { ascending: false });
     
-    if (error) {
-      throw error;
+    if (assignmentError) {
+      throw assignmentError;
     }
     
-    return { assignments: data, error: null };
+    if (!assignmentData || assignmentData.length === 0) {
+      return { assignments: [], error: null };
+    }
+    
+    // Get all unique asset IDs from the assignments
+    const assetIds = [...new Set(assignmentData.map(a => a.asset_id))];
+    
+    // Fetch asset data for these IDs
+    const { data: assetData, error: assetError } = await supabase
+      .from('assets')
+      .select('id, asset_no, equipment, department, station')
+      .in('id', assetIds);
+    
+    if (assetError) {
+      console.error('Error fetching asset data:', assetError);
+      // Continue with the assignments even if we can't get asset data
+    }
+    
+    // Create a map of asset IDs to asset data
+    const assetMap = new Map();
+    if (assetData) {
+      assetData.forEach(asset => {
+        assetMap.set(asset.id, asset);
+      });
+    }
+    
+    // Enhance the assignments with asset data
+    const assignments = assignmentData.map(assignment => {
+      const asset = assetMap.get(assignment.asset_id);
+      
+      return {
+        ...assignment,
+        assets: asset
+      };
+    });
+    
+    return { assignments, error: null };
   } catch (error: any) {
     console.error('Error fetching user assignments:', error);
     return { assignments: [], error: error.message };

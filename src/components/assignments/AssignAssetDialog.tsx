@@ -63,6 +63,16 @@ export function AssignAssetDialog({
     try {
       setIsSubmitting(true);
 
+      // Log the user selection for debugging
+      console.log('Selected user:', assignedTo);
+      console.log('Available users:', users);
+      
+      // Verify the user exists
+      const selectedUser = users.find(u => u.id === assignedTo);
+      if (!selectedUser) {
+        throw new Error('Selected user not found in the users list');
+      }
+
       const { success, error } = await assignAsset({
         asset_id: assetId,
         assigned_to: assignedTo,
