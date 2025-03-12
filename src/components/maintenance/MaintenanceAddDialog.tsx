@@ -49,7 +49,7 @@ export function MaintenanceAddDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     maintenance_type: 'Preventive' as MaintenanceRecord['maintenance_type'],
-    description: '',
+    additional_comments: '',
     technician_name: '',
     cost: '',
     date_performed: new Date(),
@@ -74,7 +74,7 @@ export function MaintenanceAddDialog({
     e.preventDefault();
     
     // Validate required fields
-    if (!formData.maintenance_type || !formData.description || !formData.technician_name || !formData.date_performed) {
+    if (!formData.maintenance_type || !formData.additional_comments || !formData.technician_name || !formData.date_performed) {
       toast({
         title: "Missing required fields",
         description: "Please fill in all required fields.",
@@ -90,7 +90,7 @@ export function MaintenanceAddDialog({
       const formattedData = {
         asset_id: assetId,
         maintenance_type: formData.maintenance_type,
-        description: formData.description,
+        additional_comments: formData.additional_comments,
         technician_name: formData.technician_name,
         cost: formData.cost ? parseFloat(formData.cost) : undefined,
         date_performed: formData.date_performed ? format(formData.date_performed, "yyyy-MM-dd'T'HH:mm:ss'Z'") : '',
@@ -130,7 +130,7 @@ export function MaintenanceAddDialog({
   const resetForm = () => {
     setFormData({
       maintenance_type: 'Preventive' as MaintenanceRecord['maintenance_type'],
-      description: '',
+      additional_comments: '',
       technician_name: '',
       cost: '',
       date_performed: new Date(),
@@ -175,11 +175,11 @@ export function MaintenanceAddDialog({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="description">Description <span className="text-red-500">*</span></Label>
+              <Label htmlFor="additional_comments">Description <span className="text-red-500">*</span></Label>
               <Textarea
-                id="description"
-                name="description"
-                value={formData.description}
+                id="additional_comments"
+                name="additional_comments"
+                value={formData.additional_comments}
                 onChange={handleChange}
                 placeholder="Describe the maintenance performed"
                 rows={3}
