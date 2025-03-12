@@ -190,6 +190,13 @@ export function AssignmentList({
   };
 
   const getUserName = (userId: string) => {
+    // First check if the assignment has the user name from the join
+    const assignment = assignments.find(a => a.assigned_to === userId);
+    if (assignment && assignment.assigned_to_name) {
+      return assignment.assigned_to_name;
+    }
+    
+    // Fall back to the users array
     const user = users.find(u => u.id === userId);
     return user ? user.full_name : 'Unknown';
   };

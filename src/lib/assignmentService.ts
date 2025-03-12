@@ -13,16 +13,26 @@ export interface AssetAssignment {
   notes?: string;
   created_at: string;
   updated_at: string;
+  // New fields from joins
+  assigned_to_user?: { id: string; full_name: string; email?: string };
+  assigned_by_user?: { id: string; full_name: string; email?: string };
+  assigned_to_name?: string;
+  assigned_by_name?: string;
+  assets?: any;
 }
 
 /**
  * Fetches all assignments for a specific asset
  */
-export async function fetchAssetAssignments(assetId: string): Promise<{ data: AssetAssignment[] | null; error: Error | null }> {
+export async function fetchAssetAssignments(assetId: string) {
   try {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('asset_assignments')
-      .select('*, assigned_to:standalone_users!assigned_to(full_name), assigned_by:standalone_users!assigned_by(full_name)')
+      .select(`
+        *,
+        assigned_to_user:users!assigned_to(id, full_name, email),
+        assigned_by_user:users!assigned_by(id, full_name, email)
+      `)
       .eq('asset_id', assetId)
       .order('assignment_date', { ascending: false });
     
@@ -30,21 +40,32 @@ export async function fetchAssetAssignments(assetId: string): Promise<{ data: As
       throw error;
     }
     
-    return { data, error: null };
+    // Transform the data to match the expected format
+    const assignments = data.map(assignment => ({
+      ...assignment,
+      assigned_to_name: assignment.assigned_to_user?.full_name || 'Unknown',
+      assigned_by_name: assignment.assigned_by_user?.full_name || 'Unknown'
+    }));
+    
+    return { assignments, error: null };
   } catch (error: any) {
     console.error('Error fetching asset assignments:', error);
-    return { data: null, error };
+    return { assignments: [], error: error.message };
   }
 }
 
 /**
  * Fetches all active assignments
  */
-export async function fetchActiveAssignments(): Promise<{ data: AssetAssignment[] | null; error: Error | null }> {
+export async function fetchActiveAssignments() {
   try {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('asset_assignments')
-      .select('*, assigned_to:standalone_users!assigned_to(full_name), assets(asset_no, equipment)')
+      .select(`
+        *,
+        assigned_to_user:users!assigned_to(id, full_name, email),
+        assets(id, asset_no, equipment)
+      `)
       .eq('status', 'Active')
       .order('assignment_date', { ascending: false });
     
@@ -52,21 +73,30 @@ export async function fetchActiveAssignments(): Promise<{ data: AssetAssignment[
       throw error;
     }
     
-    return { data, error: null };
+    // Transform the data to match the expected format
+    const assignments = data.map(assignment => ({
+      ...assignment,
+      assigned_to_name: assignment.assigned_to_user?.full_name || 'Unknown'
+    }));
+    
+    return { assignments, error: null };
   } catch (error: any) {
     console.error('Error fetching active assignments:', error);
-    return { data: null, error };
+    return { assignments: [], error: error.message };
   }
 }
 
 /**
  * Fetches all assignments for a specific user
  */
-export async function fetchUserAssignments(userId: string): Promise<{ data: AssetAssignment[] | null; error: Error | null }> {
+export async function fetchUserAssignments(userId: string) {
   try {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('asset_assignments')
-      .select('*, assets(asset_no, equipment, department, station)')
+      .select(`
+        *,
+        assets(id, asset_no, equipment, department, station)
+      `)
       .eq('assigned_to', userId)
       .order('assignment_date', { ascending: false });
     
@@ -74,10 +104,10 @@ export async function fetchUserAssignments(userId: string): Promise<{ data: Asse
       throw error;
     }
     
-    return { data, error: null };
+    return { assignments: data, error: null };
   } catch (error: any) {
     console.error('Error fetching user assignments:', error);
-    return { data: null, error };
+    return { assignments: [], error: error.message };
   }
 }
 
@@ -92,48 +122,73 @@ export async function assignAsset(assignment: {
   expected_return_date?: string;
   notes?: string;
   status?: AssetAssignment['status'];
-}): Promise<{ success: boolean; error: Error | null }> {
+}) {
   try {
     // First check if the asset is already assigned
-    const { data: existingAssignments } = await (supabase as any)
+    const { data: existingAssignments, error: checkError } = await supabase
       .from('asset_assignments')
       .select('id')
       .eq('asset_id', assignment.asset_id)
       .eq('status', 'Active')
       .maybeSingle();
     
+    if (checkError) {
+      console.error('Error checking existing assignments:', checkError);
+    }
+    
     if (existingAssignments) {
       throw new Error('Asset is already assigned to someone else');
     }
     
+    // Verify that the user exists
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', assignment.assigned_to)
+      .maybeSingle();
+      
+    if (userError) {
+      console.error('Error checking user:', userError);
+      throw new Error('Error verifying user');
+    }
+    
+    if (!user) {
+      throw new Error('User not found. Please select a valid user.');
+    }
+    
     // Create the new assignment
-    const { error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('asset_assignments')
       .insert({
         ...assignment,
         status: assignment.status || 'Active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      });
+      })
+      .select()
+      .single();
     
     if (error) {
       throw error;
     }
     
     // Update the asset status to "Assigned"
-    const { error: assetUpdateError } = await (supabase as any)
+    const { error: assetUpdateError } = await supabase
       .from('assets')
-      .update({ status: 'Assigned' })
+      .update({ 
+        status: 'Assigned',
+        user_id: assignment.assigned_to
+      })
       .eq('id', assignment.asset_id);
     
     if (assetUpdateError) {
       console.error('Error updating asset status:', assetUpdateError);
     }
     
-    return { success: true, error: null };
+    return { success: true, assignment: data, error: null };
   } catch (error: any) {
     console.error('Error assigning asset:', error);
-    return { success: false, error };
+    return { success: false, assignment: null, error: error.message };
   }
 }
 
@@ -144,12 +199,12 @@ export async function returnAsset(
   assignmentId: string,
   returnDate: string,
   notes?: string
-): Promise<{ success: boolean; error: Error | null }> {
+) {
   try {
     // Get the assignment to find the asset_id
-    const { data: assignment, error: fetchError } = await (supabase as any)
+    const { data: assignment, error: fetchError } = await supabase
       .from('asset_assignments')
-      .select('asset_id')
+      .select('asset_id, notes')
       .eq('id', assignmentId)
       .single();
     
@@ -158,7 +213,7 @@ export async function returnAsset(
     }
     
     // Update the assignment
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('asset_assignments')
       .update({
         status: 'Returned',
@@ -173,9 +228,12 @@ export async function returnAsset(
     }
     
     // Update the asset status to "Available"
-    const { error: assetUpdateError } = await (supabase as any)
+    const { error: assetUpdateError } = await supabase
       .from('assets')
-      .update({ status: 'Available' })
+      .update({ 
+        status: 'Available',
+        user_id: null
+      })
       .eq('id', assignment.asset_id);
     
     if (assetUpdateError) {
@@ -185,7 +243,7 @@ export async function returnAsset(
     return { success: true, error: null };
   } catch (error: any) {
     console.error('Error returning asset:', error);
-    return { success: false, error };
+    return { success: false, error: error.message };
   }
 }
 
@@ -196,10 +254,10 @@ export async function updateAssignmentStatus(
   assignmentId: string,
   status: AssetAssignment['status'],
   notes?: string
-): Promise<{ success: boolean; error: Error | null }> {
+) {
   try {
     // Get the assignment to find the asset_id and current notes
-    const { data: assignment, error: fetchError } = await (supabase as any)
+    const { data: assignment, error: fetchError } = await supabase
       .from('asset_assignments')
       .select('asset_id, notes')
       .eq('id', assignmentId)
@@ -210,7 +268,7 @@ export async function updateAssignmentStatus(
     }
     
     // Update the assignment
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('asset_assignments')
       .update({
         status,
@@ -225,17 +283,32 @@ export async function updateAssignmentStatus(
     
     // Update the asset status based on the assignment status
     let assetStatus = 'Available';
+    let userId = null;
+    
     if (status === 'Lost') {
       assetStatus = 'Lost';
     } else if (status === 'Active') {
       assetStatus = 'Assigned';
+      // Get the user ID from the assignment
+      const { data: fullAssignment } = await supabase
+        .from('asset_assignments')
+        .select('assigned_to')
+        .eq('id', assignmentId)
+        .single();
+        
+      if (fullAssignment) {
+        userId = fullAssignment.assigned_to;
+      }
     } else if (status === 'Damaged') {
       assetStatus = 'Damaged';
     }
     
-    const { error: assetUpdateError } = await (supabase as any)
+    const { error: assetUpdateError } = await supabase
       .from('assets')
-      .update({ status: assetStatus })
+      .update({ 
+        status: assetStatus,
+        user_id: userId
+      })
       .eq('id', assignment.asset_id);
     
     if (assetUpdateError) {
@@ -245,6 +318,6 @@ export async function updateAssignmentStatus(
     return { success: true, error: null };
   } catch (error: any) {
     console.error('Error updating assignment status:', error);
-    return { success: false, error };
+    return { success: false, error: error.message };
   }
 } 
