@@ -117,6 +117,7 @@ export function AssetMaintenanceTab({ assetId }: AssetMaintenanceTabProps) {
           onClose={() => setIsFullFormOpen(false)}
           onSuccess={fetchRecords}
           users={users}
+          assetId={assetId}
         />
       )}
     </div>

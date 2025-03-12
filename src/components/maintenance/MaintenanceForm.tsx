@@ -36,6 +36,7 @@ interface MaintenanceFormProps {
   onClose: () => void;
   onSuccess: () => void;
   users: { id: string; full_name: string }[];
+  assetId?: string; // Optional asset ID for pre-populating the form
 }
 
 // Form schema
@@ -109,7 +110,7 @@ const maintenanceFormSchema = z.object({
 
 type MaintenanceFormValues = z.infer<typeof maintenanceFormSchema>;
 
-export function MaintenanceForm({ isOpen, onClose, onSuccess, users }: MaintenanceFormProps) {
+export function MaintenanceForm({ isOpen, onClose, onSuccess, users, assetId }: MaintenanceFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -127,6 +128,47 @@ export function MaintenanceForm({ isOpen, onClose, onSuccess, users }: Maintenan
       disk_cleanup: false,
     },
   });
+
+  // Pre-populate the form with asset data if assetId is provided
+  useEffect(() => {
+    if (assetId) {
+      // Set the asset_id field
+      form.setValue('asset_id', assetId);
+      
+      // Fetch asset details to populate other fields
+      const fetchAssetDetails = async () => {
+        setIsSearching(true);
+        try {
+          // Use the asset ID as the identifier
+          const { asset, error } = await fetchAssetByIdentifier(assetId);
+          
+          if (error) {
+            console.error('Error fetching asset details:', error);
+            return;
+          }
+          
+          if (asset) {
+            // Auto-populate form fields with asset data
+            form.setValue('equipment_type', asset.type);
+            form.setValue('make_model', asset.make_model);
+            form.setValue('serial_number', asset.serial_number);
+            form.setValue('location', asset.location);
+            form.setValue('department', asset.department);
+            
+            if (asset.assigned_user) {
+              form.setValue('assigned_user', asset.assigned_user.id);
+            }
+          }
+        } catch (error) {
+          console.error('Error in fetchAssetDetails:', error);
+        } finally {
+          setIsSearching(false);
+        }
+      };
+      
+      fetchAssetDetails();
+    }
+  }, [assetId, form]);
 
   // Handle asset search and auto-population
   const handleAssetSearch = async () => {
