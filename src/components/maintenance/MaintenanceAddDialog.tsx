@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
-import { addMaintenanceRecord } from '@/lib/maintenanceService';
+import { addMaintenanceRecord, MaintenanceRecord } from '@/lib/maintenanceService';
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -33,16 +33,10 @@ interface MaintenanceAddDialogProps {
 }
 
 const MAINTENANCE_TYPES = [
+  'Scheduled',
   'Preventive',
   'Corrective',
-  'Condition-based',
-  'Predictive',
-  'Emergency',
-  'Inspection',
-  'Calibration',
-  'Software Update',
-  'Hardware Upgrade',
-  'Other'
+  'Emergency'
 ];
 
 export function MaintenanceAddDialog({ 
@@ -54,9 +48,9 @@ export function MaintenanceAddDialog({
 }: MaintenanceAddDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    maintenance_type: 'Preventive',
+    maintenance_type: 'Preventive' as MaintenanceRecord['maintenance_type'],
     description: '',
-    performed_by: '',
+    technician_name: '',
     cost: '',
     date_performed: new Date(),
     next_maintenance_date: null as Date | null
@@ -79,59 +73,53 @@ export function MaintenanceAddDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate required fields
+    if (!formData.maintenance_type || !formData.description || !formData.technician_name || !formData.date_performed) {
+      toast({
+        title: "Missing required fields",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
-      
-      // Validate form data
-      if (!formData.maintenance_type || !formData.description || !formData.performed_by) {
-        toast({
-          title: "Validation Error",
-          description: "Please fill in all required fields",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Format dates for API
-      const datePerformed = formData.date_performed.toISOString();
-      const nextMaintenanceDate = formData.next_maintenance_date 
-        ? formData.next_maintenance_date.toISOString() 
-        : undefined;
-      
-      // Add maintenance record
-      const { success, error } = await addMaintenanceRecord({
+      // Format dates for API submission
+      const formattedData = {
         asset_id: assetId,
         maintenance_type: formData.maintenance_type,
         description: formData.description,
-        performed_by: formData.performed_by,
-        cost: parseFloat(formData.cost) || 0,
-        date_performed: datePerformed,
-        next_maintenance_date: nextMaintenanceDate
-      });
+        technician_name: formData.technician_name,
+        cost: formData.cost ? parseFloat(formData.cost) : undefined,
+        date_performed: formData.date_performed ? format(formData.date_performed, "yyyy-MM-dd'T'HH:mm:ss'Z'") : '',
+        next_maintenance_date: formData.next_maintenance_date ? format(formData.next_maintenance_date, "yyyy-MM-dd'T'HH:mm:ss'Z'") : undefined,
+      };
+      
+      console.log("Submitting maintenance record:", formattedData);
+      
+      const { record, error } = await addMaintenanceRecord(formattedData);
+      
+      console.log("Response:", { record, error });
       
       if (error) {
-        throw error;
+        throw new Error(error);
       }
       
       toast({
-        title: "Success",
-        description: "Maintenance record added successfully",
+        title: "Maintenance record added",
+        description: "The maintenance record has been added successfully.",
       });
       
-      // Reset form and close dialog
       resetForm();
-      
-      // Call onSuccess callback if provided
-      if (onSuccess) {
-        onSuccess();
-      }
-      
+      onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Error adding maintenance record:', error);
+      console.error("Error adding maintenance record:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to add maintenance record",
+        title: "Failed to add maintenance record",
+        description: error.message || "An error occurred while adding the maintenance record.",
         variant: "destructive",
       });
     } finally {
@@ -141,9 +129,9 @@ export function MaintenanceAddDialog({
 
   const resetForm = () => {
     setFormData({
-      maintenance_type: 'Preventive',
+      maintenance_type: 'Preventive' as MaintenanceRecord['maintenance_type'],
       description: '',
-      performed_by: '',
+      technician_name: '',
       cost: '',
       date_performed: new Date(),
       next_maintenance_date: null
@@ -201,22 +189,15 @@ export function MaintenanceAddDialog({
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="performed_by">Performed By <span className="text-red-500">*</span></Label>
-                <Select 
-                  value={formData.performed_by} 
-                  onValueChange={(value) => handleSelectChange('performed_by', value)}
-                >
-                  <SelectTrigger id="performed_by">
-                    <SelectValue placeholder="Select Technician" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="technician_name">Technician Name <span className="text-red-500">*</span></Label>
+                <Input
+                  id="technician_name"
+                  name="technician_name"
+                  value={formData.technician_name}
+                  onChange={handleChange}
+                  placeholder="Enter technician name"
+                  disabled={isLoading}
+                />
               </div>
               
               <div className="space-y-2">
@@ -224,11 +205,11 @@ export function MaintenanceAddDialog({
                 <Input
                   id="cost"
                   name="cost"
-                  type="number"
-                  step="0.01"
                   value={formData.cost}
                   onChange={handleChange}
-                  placeholder="0.00"
+                  placeholder="Enter cost"
+                  type="number"
+                  disabled={isLoading}
                 />
               </div>
             </div>

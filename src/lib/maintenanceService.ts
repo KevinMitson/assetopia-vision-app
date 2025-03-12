@@ -292,6 +292,38 @@ export async function fetchMaintenanceRecords({
  */
 export async function addMaintenanceRecord(record: NewMaintenanceRecord) {
   try {
+    console.log("Adding maintenance record:", record);
+    
+    // Ensure required fields are present
+    if (!record.asset_id) {
+      throw new Error("Asset ID is required");
+    }
+    
+    if (!record.maintenance_type) {
+      throw new Error("Maintenance type is required");
+    }
+    
+    if (!record.date_performed) {
+      throw new Error("Date performed is required");
+    }
+    
+    if (!record.technician_name) {
+      throw new Error("Technician name is required");
+    }
+    
+    // Check if the asset exists
+    const { data: assetExists, error: assetCheckError } = await supabase
+      .from('assets')
+      .select('id')
+      .eq('id', record.asset_id)
+      .single();
+    
+    if (assetCheckError) {
+      console.error("Error checking asset:", assetCheckError);
+      throw new Error(`Asset not found: ${assetCheckError.message}`);
+    }
+    
+    // Insert the record
     const { data, error } = await supabase
       .from('maintenance_records')
       .insert(record)
@@ -299,18 +331,26 @@ export async function addMaintenanceRecord(record: NewMaintenanceRecord) {
       .single();
     
     if (error) {
+      console.error("Supabase error adding maintenance record:", error);
       throw new Error(error.message);
     }
     
+    console.log("Maintenance record added successfully:", data);
+    
     // Update the asset's last_maintenance_date and next_maintenance_date
     if (record.next_maintenance_date) {
-      await supabase
+      const { error: updateError } = await supabase
         .from('assets')
         .update({
           last_maintenance_date: record.date_performed,
           next_maintenance_date: record.next_maintenance_date
         })
         .eq('id', record.asset_id);
+      
+      if (updateError) {
+        console.warn("Error updating asset maintenance dates:", updateError);
+        // Don't throw here, as the record was already created
+      }
     }
     
     return { record: data as MaintenanceRecord, error: null };
