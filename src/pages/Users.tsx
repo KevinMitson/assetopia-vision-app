@@ -49,9 +49,9 @@ export default function Users() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [filterStation, setFilterStation] = useState<string>('');
-  const [filterDepartment, setFilterDepartment] = useState<string>('');
-  const [filterRole, setFilterRole] = useState<string>('');
+  const [filterStation, setFilterStation] = useState<string>('all');
+  const [filterDepartment, setFilterDepartment] = useState<string>('all');
+  const [filterRole, setFilterRole] = useState<string>('all');
   const [stations, setStations] = useState<string[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
@@ -79,9 +79,9 @@ export default function Users() {
 
       // Extract unique values for filters
       if (users && users.length > 0) {
-        const uniqueStations = [...new Set(users.map(user => user.station).filter(Boolean))];
-        const uniqueDepartments = [...new Set(users.map(user => user.department).filter(Boolean))];
-        const uniqueRoles = [...new Set(users.map(user => user.role_name).filter(Boolean))];
+      const uniqueStations = [...new Set(users.map(user => user.station || 'Unknown Station').filter(Boolean))];
+      const uniqueDepartments = [...new Set(users.map(user => user.department || 'Unknown Department').filter(Boolean))];
+      const uniqueRoles = [...new Set(users.map(user => user.role_name || 'Unknown Role').filter(Boolean))];
         
         setStations(uniqueStations);
         setDepartments(uniqueDepartments);
@@ -109,9 +109,9 @@ export default function Users() {
         (user.department?.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (user.role_name?.toLowerCase().includes(searchTerm.toLowerCase()));
       
-      const matchesStation = filterStation === '' || user.station === filterStation;
-      const matchesDepartment = filterDepartment === '' || user.department === filterDepartment;
-      const matchesRole = filterRole === '' || user.role_name === filterRole;
+      const matchesStation = filterStation === 'all' || user.station === filterStation;
+      const matchesDepartment = filterDepartment === 'all' || user.department === filterDepartment;
+      const matchesRole = filterRole === 'all' || user.role_name === filterRole;
       
       return matchesSearch && matchesStation && matchesDepartment && matchesRole;
     });
@@ -155,9 +155,9 @@ export default function Users() {
   // Reset all filters
   const resetFilters = () => {
     setSearchTerm('');
-    setFilterStation('');
-    setFilterDepartment('');
-    setFilterRole('');
+    setFilterStation('all');
+    setFilterDepartment('all');
+    setFilterRole('all');
     setShowFilters(false);
   };
 
@@ -253,9 +253,9 @@ export default function Users() {
                               <SelectValue placeholder="All Roles" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">All Roles</SelectItem>
-                              {roles.map((role) => (
-                                <SelectItem key={role} value={role}>
+                              <SelectItem value="all">All Roles</SelectItem>
+                              {roles.filter(role => role.trim()).map((role) => (
+                                <SelectItem key={role} value={role || 'Unknown Role'}>
                                   {role}
                                 </SelectItem>
                               ))}
@@ -269,9 +269,9 @@ export default function Users() {
                               <SelectValue placeholder="All Stations" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">All Stations</SelectItem>
-                              {stations.map((station) => (
-                                <SelectItem key={station} value={station}>
+                              <SelectItem value="all">All Stations</SelectItem>
+                              {stations.filter(station => station.trim()).map((station) => (
+                                <SelectItem key={station} value={station || 'Unknown Station'}>
                                   {station}
                                 </SelectItem>
                               ))}
@@ -285,9 +285,9 @@ export default function Users() {
                               <SelectValue placeholder="All Departments" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">All Departments</SelectItem>
-                              {departments.map((department) => (
-                                <SelectItem key={department} value={department}>
+                              <SelectItem value="all">All Departments</SelectItem>
+                              {departments.filter(dept => dept.trim()).map((department) => (
+                                <SelectItem key={department} value={department || 'Unknown Department'}>
                                   {department}
                                 </SelectItem>
                               ))}
@@ -329,7 +329,7 @@ export default function Users() {
                       Role: {filterRole}
                       <X 
                         className="h-3 w-3 cursor-pointer" 
-                        onClick={() => setFilterRole('')}
+                        onClick={() => setFilterRole('all')}
                       />
                     </Badge>
                   )}
@@ -338,7 +338,7 @@ export default function Users() {
                       Station: {filterStation}
                       <X 
                         className="h-3 w-3 cursor-pointer" 
-                        onClick={() => setFilterStation('')}
+                        onClick={() => setFilterStation('all')}
                       />
                     </Badge>
                   )}
@@ -347,7 +347,7 @@ export default function Users() {
                       Department: {filterDepartment}
                       <X 
                         className="h-3 w-3 cursor-pointer" 
-                        onClick={() => setFilterDepartment('')}
+                        onClick={() => setFilterDepartment('all')}
                       />
                     </Badge>
                   )}
@@ -526,4 +526,4 @@ export default function Users() {
       />
     </div>
   );
-} 
+}

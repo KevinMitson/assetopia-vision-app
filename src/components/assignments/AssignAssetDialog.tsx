@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -14,9 +14,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
+import { supabase } from '@/integrations/supabase/client';
 
 interface AssignAssetDialogProps {
   isOpen: boolean;
@@ -37,7 +38,20 @@ export function AssignAssetDialog({
   const [expectedReturnDate, setExpectedReturnDate] = useState<Date | undefined>(addDays(new Date(), 14));
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Get current user ID when component mounts
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        setCurrentUserId(data.user.id);
+      }
+    };
+    
+    getCurrentUser();
+  }, []);
 
   const resetForm = () => {
     setAssignedTo('');
@@ -76,7 +90,7 @@ export function AssignAssetDialog({
       const { success, error } = await assignAsset({
         asset_id: assetId,
         assigned_to: assignedTo,
-        assigned_by: "current-user-id", // TODO: Replace with actual current user ID
+        assigned_by: currentUserId || "system",
         assignment_date: new Date().toISOString(),
         expected_return_date: expectedReturnDate ? expectedReturnDate.toISOString() : undefined,
         notes: notes || undefined
@@ -88,7 +102,7 @@ export function AssignAssetDialog({
 
       toast({
         title: "Success",
-        description: "Asset assigned successfully",
+        description: `Asset assigned to ${selectedUser.full_name} successfully`,
       });
 
       resetForm();
@@ -127,11 +141,17 @@ export function AssignAssetDialog({
                 <SelectValue placeholder="Select a user" />
               </SelectTrigger>
               <SelectContent>
-                {users.map((user) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    {user.full_name}
-                  </SelectItem>
-                ))}
+                {users.length === 0 ? (
+                  <div className="p-2 text-center text-sm text-muted-foreground">
+                    No users available
+                  </div>
+                ) : (
+                  users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.full_name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -175,11 +195,18 @@ export function AssignAssetDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
+          <Button variant="outline" onClick={handleClose} disabled={isSubmitting}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Assigning...' : 'Assign Asset'}
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Assigning...
+              </>
+            ) : (
+              'Assign Asset'
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
