@@ -1,41 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import * as XLSX from 'xlsx';
-
-export interface User {
-  id: string;
-  full_name: string;
-  email?: string;
-  phone?: string;
-  department?: string;
-  designation?: string;
-  station?: string;
-  status?: string;
-  created_at: string;
-  updated_at: string;
-}
+import { User } from '@/types';
 
 /**
- * Fetches all users from both standalone_users and user_roles tables
+ * Fetches all users from the user_roles table
  */
 export async function fetchAllUsers() {
   try {
-    console.log('Fetching users...');
-    
-    // Fetch standalone users
-    const { data: standaloneUsers, error: standaloneError } = await (supabase as any)
-      .from('standalone_users')
-      .select('*')
-      .order('full_name');
-
-    if (standaloneError) {
-      console.error('Error fetching standalone users:', standaloneError);
-      throw standaloneError;
-    }
-
-    console.log('Standalone users fetched:', standaloneUsers?.length || 0);
-
-    // Fetch users from user_roles with a safer join
+    // Fetch users from user_roles with joined user data
     const { data: roleUsers, error: roleError } = await (supabase as any)
       .from('user_roles')
       .select(`
@@ -43,92 +16,73 @@ export async function fetchAllUsers() {
         role_id,
         users:auth.users!user_id (
           id,
-          email
+          email,
+          created_at,
+          updated_at
+        ),
+        roles (
+          name
         )
       `)
-      .order('user_id');
+      .order('users.email');
 
     if (roleError) {
-      console.error('Error fetching role users:', roleError);
-      // Don't throw here, just log and continue with standalone users
-      return { users: standaloneUsers || [], error: null };
+      throw roleError;
     }
 
     console.log('Role users fetched:', roleUsers?.length || 0);
 
     if (!roleUsers || roleUsers.length === 0) {
-      // If no role users found, just return standalone users
-      return { users: standaloneUsers || [], error: null };
+      return { users: [], error: null };
     }
 
     // Transform role users to match the User interface
-    const transformedRoleUsers = roleUsers
+    const transformedUsers = roleUsers
       .filter(ru => ru.users) // Filter out any null users
       .map(ru => ({
         id: ru.user_id,
-        full_name: ru.users.email?.split('@')[0] || ru.user_id, // Use email username or ID if no name
+        full_name: ru.users.email?.split('@')[0] || ru.user_id, // Use email username as full_name
         email: ru.users.email,
         role_id: ru.role_id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        role_name: ru.roles?.name || 'User',
+        created_at: ru.users.created_at || new Date().toISOString(),
+        updated_at: ru.users.updated_at || new Date().toISOString()
       }));
 
-    console.log('Transformed role users:', transformedRoleUsers.length);
+    console.log('Transformed users:', transformedUsers.length);
 
-    // Merge both sets of users, avoiding duplicates by ID
-    const userMap = new Map();
-    
-    // Add standalone users first
-    if (standaloneUsers) {
-      standaloneUsers.forEach(user => {
-        userMap.set(user.id, user);
-      });
-    }
-
-    // Add role users, but don't overwrite existing standalone users
-    transformedRoleUsers.forEach(user => {
-      if (!userMap.has(user.id)) {
-        userMap.set(user.id, user);
-      }
-    });
-
-    // Convert map back to array
-    const allUsers = Array.from(userMap.values());
-    console.log('Total users after merge:', allUsers.length);
-
-    return { users: allUsers as User[], error: null };
+    return { users: transformedUsers as User[], error: null };
   } catch (error: any) {
     console.error('Error in fetchAllUsers:', error);
-    // Return an empty array instead of throwing
     return { users: [], error: error.message };
   }
 }
 
 /**
- * Checks if a user exists in either standalone_users or user_roles tables
+ * Checks if a user exists in the user_roles table
  */
-export async function checkUserExists(fullName: string) {
+export async function checkUserExists(email: string) {
   try {
-    // Check standalone_users first
-    const { data: standaloneUser, error: standaloneError } = await (supabase as any)
-      .from('standalone_users')
+    // Check if user exists in auth.users
+    const { data: authUser, error: authError } = await (supabase as any)
+      .from('auth.users')
       .select('id')
-      .eq('full_name', fullName)
+      .eq('email', email)
       .maybeSingle();
 
-    if (standaloneError) {
-      throw standaloneError;
+    if (authError) {
+      throw authError;
     }
 
-    if (standaloneUser) {
-      return { exists: true, userId: standaloneUser.id, error: null };
+    if (!authUser) {
+      return { exists: false, userId: null, error: null };
     }
 
-    // Check user_roles table if not found in standalone_users
+    // Check if user exists in user_roles
     const { data: roleUser, error: roleError } = await (supabase as any)
       .from('user_roles')
-      .select('user_id, users!inner(full_name)')
-      .eq('users.full_name', fullName)
+      .select('user_id')
+      .eq('user_id', authUser.id)
       .maybeSingle();
 
     if (roleError) {
@@ -137,7 +91,7 @@ export async function checkUserExists(fullName: string) {
 
     return { 
       exists: !!roleUser, 
-      userId: roleUser?.user_id || null, 
+      userId: authUser.id, 
       error: null 
     };
   } catch (error: any) {
@@ -147,35 +101,92 @@ export async function checkUserExists(fullName: string) {
 }
 
 /**
- * Adds a new user to the standalone_users table and optionally to user_roles
+ * Adds a new user to the auth.users and user_roles tables
  */
 export async function addUser(userData: {
   full_name: string;
-  email?: string;
+  email: string;
   department?: string;
   designation?: string;
   station?: string;
-  role_id?: string; // Optional role ID for user_roles table
+  role_id?: string;
 }) {
   try {
-    // Check if user already exists in either table
-    const { exists, userId, error: checkError } = await checkUserExists(userData.full_name);
+    if (!userData.email) {
+      throw new Error('Email is required');
+    }
+
+    // Check if user already exists
+    const { exists, userId, error: checkError } = await checkUserExists(userData.email);
     
     if (checkError) {
       throw new Error(checkError);
     }
     
-    if (exists) {
-      throw new Error(`User "${userData.full_name}" already exists`);
+    let authUserId = userId;
+    
+    // If user doesn't exist in auth.users, create them
+    if (!exists && !authUserId) {
+      // Create user in auth.users
+      const { data: authData, error: authError } = await (supabase as any).auth.admin.createUser({
+        email: userData.email,
+        email_confirm: true,
+        user_metadata: {
+          full_name: userData.full_name,
+          department: userData.department,
+          designation: userData.designation,
+          station: userData.station
+        }
+      });
+      
+      if (authError) {
+        throw authError;
+      }
+      
+      authUserId = authData.user.id;
     }
     
-    // Start a Supabase transaction
+    // Get default role if none provided
+    let roleId = userData.role_id;
+    if (!roleId) {
+      const { data: defaultRole, error: roleError } = await (supabase as any)
+        .from('roles')
+        .select('id')
+        .eq('name', 'User')
+        .maybeSingle();
+        
+      if (roleError) {
+        throw roleError;
+      }
+      
+      roleId = defaultRole?.id;
+      
+      if (!roleId) {
+        // Get any role if 'User' role doesn't exist
+        const { data: anyRole, error: anyRoleError } = await (supabase as any)
+          .from('roles')
+          .select('id')
+          .limit(1)
+          .single();
+          
+        if (anyRoleError) {
+          throw anyRoleError;
+        }
+        
+        roleId = anyRole.id;
+      }
+    }
+    
+    if (!roleId) {
+      throw new Error('No role available to assign to user');
+    }
+    
+    // Add user to user_roles
     const { data, error } = await (supabase as any)
-      .from('standalone_users')
+      .from('user_roles')
       .insert({
-        ...userData,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        user_id: authUserId,
+        role_id: roleId
       })
       .select()
       .single();
@@ -183,23 +194,23 @@ export async function addUser(userData: {
     if (error) {
       throw error;
     }
-
-    // If a role_id is provided, also add to user_roles table
-    if (userData.role_id && data.id) {
-      const { error: roleError } = await (supabase as any)
-        .from('user_roles')
-        .insert({
-          user_id: data.id,
-          role_id: userData.role_id
-        });
-
-      if (roleError) {
-        // If role assignment fails, we should still return success for the user creation
-        console.error('Error assigning role to user:', roleError);
-      }
-    }
     
-    return { success: true, user: data as User, error: null };
+    // Return the complete user data
+    return { 
+      success: true, 
+      user: {
+        id: authUserId,
+        full_name: userData.full_name,
+        email: userData.email,
+        department: userData.department,
+        designation: userData.designation,
+        station: userData.station,
+        role_id: roleId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      } as User, 
+      error: null 
+    };
   } catch (error: any) {
     console.error('Error adding user:', error);
     return { success: false, user: null, error: error.message };
@@ -236,92 +247,47 @@ export async function updateUser(
 }
 
 /**
- * Imports multiple users, updating existing ones and adding new ones
+ * Imports multiple users from a data array
  */
-export async function importUsers(fileData: ArrayBuffer) {
+export async function importUsers(users: any[]) {
   try {
-    const workbook = XLSX.read(fileData, { type: 'array' });
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet);
-    
-    if (!data || data.length === 0) {
-      throw new Error('No data found in the imported file');
-    }
-    
     const results = {
-      total: data.length,
-      successful: 0,
+      success: 0,
       failed: 0,
-      errors: [] as { row: number; name: string; error: string }[]
+      errors: [] as string[]
     };
-    
-    // Process each row
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i] as any;
-      
-      // Validate required fields
-      if (!row.full_name) {
+
+    // Process each user
+    for (const userData of users) {
+      if (!userData.full_name) {
         results.failed++;
-        results.errors.push({
-          row: i + 2, // +2 because Excel is 1-indexed and we have a header row
-          name: row.full_name || 'Unknown',
-          error: 'Missing full name'
-        });
+        results.errors.push(`Missing full_name for a user`);
         continue;
       }
-      
-      try {
-        // Check if user exists
-        const { exists, userId } = await checkUserExists(row.full_name);
-        
-        if (exists && userId) {
-          // Update existing user
-          const { success, error } = await updateUser(userId, {
-            email: row.email,
-            department: row.department,
-            designation: row.designation,
-            station: row.station
-          });
-          
-          if (!success) {
-            throw new Error(error || 'Failed to update user');
-          }
-          
-          results.successful++;
-        } else {
-          // Add new user
-          const { success, error } = await addUser({
-            full_name: row.full_name,
-            email: row.email,
-            department: row.department,
-            designation: row.designation,
-            station: row.station
-          });
-          
-          if (!success) {
-            throw new Error(error || 'Failed to add user');
-          }
-          
-          results.successful++;
-        }
-      } catch (error: any) {
+
+      // Generate email if not provided
+      if (!userData.email) {
+        userData.email = `${userData.full_name.toLowerCase().replace(/[^a-z0-9]/g, '')}@placeholder.local`;
+      }
+
+      // Add the user
+      const { success, error } = await addUser(userData);
+
+      if (success) {
+        results.success++;
+      } else {
         results.failed++;
-        results.errors.push({
-          row: i + 2,
-          name: row.full_name || 'Unknown',
-          error: error.message
-        });
+        results.errors.push(`Failed to import ${userData.full_name}: ${error}`);
       }
     }
-    
-    return { success: true, results, error: null };
+
+    return results;
   } catch (error: any) {
     console.error('Error importing users:', error);
-    return { 
-      success: false, 
-      results: null, 
-      error: error.message 
+    return {
+      success: 0,
+      failed: users.length,
+      errors: [error.message]
     };
   }
 } 
