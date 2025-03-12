@@ -1,0 +1,1 @@
+  <CardTitle className="text-2xl font-bold text-center">ZACL_INVENTORY</CardTitle> 

@@ -1,4 +1,3 @@
-
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,9 +13,10 @@ interface StatCardProps {
     isPositive: boolean;
   };
   className?: string;
+  loading?: boolean;
 }
 
-export function StatCard({ title, value, icon, description, trend, className }: StatCardProps) {
+export function StatCard({ title, value, icon, description, trend, className, loading = false }: StatCardProps) {
   return (
     <Card className={cn("overflow-hidden transition-all duration-300 hover:card-shadow", className)}>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -26,21 +26,30 @@ export function StatCard({ title, value, icon, description, trend, className }: 
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold animate-fadeIn">{value}</div>
-        {(description || trend) && (
-          <div className="mt-1 flex items-center text-xs">
-            {trend && (
-              <span className={cn(
-                "mr-1 text-xs font-medium",
-                trend.isPositive ? "text-green-500" : "text-red-500"
-              )}>
-                {trend.isPositive ? "+" : ""}{trend.value}%
-              </span>
+        {loading ? (
+          <>
+            <div className="h-8 w-24 bg-secondary animate-pulse rounded-md"></div>
+            <div className="mt-1 h-4 w-32 bg-secondary/50 animate-pulse rounded-md"></div>
+          </>
+        ) : (
+          <>
+            <div className="text-2xl font-bold animate-fadeIn">{value}</div>
+            {(description || trend) && (
+              <div className="mt-1 flex items-center text-xs">
+                {trend && (
+                  <span className={cn(
+                    "mr-1 text-xs font-medium",
+                    trend.isPositive ? "text-green-500" : "text-red-500"
+                  )}>
+                    {trend.isPositive ? "+" : ""}{trend.value}%
+                  </span>
+                )}
+                {description && (
+                  <span className="text-muted-foreground">{description}</span>
+                )}
+              </div>
             )}
-            {description && (
-              <span className="text-muted-foreground">{description}</span>
-            )}
-          </div>
+          </>
         )}
       </CardContent>
     </Card>

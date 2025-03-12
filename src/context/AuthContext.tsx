@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
@@ -187,15 +186,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       
       if (response.error) {
+        console.error('Authentication error:', response.error);
+        
+        // Check if the error is due to email not being confirmed
+        if (response.error.message.includes('Email not confirmed')) {
+          return { 
+            error: new Error('Please verify your email before logging in. Check your inbox for a verification link.'), 
+            data: null 
+          };
+        }
+        
         return { error: response.error, data: null };
       }
       
       if (response.data.user) {
         await fetchUserRoles(response.data.user.id);
+        
+        // Check if the user has any roles assigned
+        if (userRoles.length === 0) {
+          console.log('User has no roles assigned, checking profiles table');
+          
+          // Check if the user has an admin role in the profiles table
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', response.data.user.id)
+              .single();
+              
+            if (profileData && profileData.role === 'Admin') {
+              setUserRoles(['Admin']);
+              setIsAdmin(true);
+            }
+          } catch (profileError) {
+            console.log('No profile found or error fetching profile:', profileError);
+          }
+        }
       }
       
       return { error: null, data: response.data.session };
     } catch (error) {
+      console.error('Sign in error:', error);
       return { error: error as Error, data: null };
     }
   };

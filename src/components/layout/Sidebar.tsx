@@ -1,4 +1,3 @@
-
 import {
   BarChart3,
   Home,
@@ -12,12 +11,14 @@ import {
   Tag,
   ShieldCheck,
   Wrench,
+  Settings2
 } from "lucide-react";
 
 import { MainNav } from "@/components/main-nav";
 import { SidebarNavItem } from "@/components/nav";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/context/AuthContext";
+import { ReactNode } from "react";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLElement> {
   navItems?: SidebarNavItem[];
@@ -28,23 +29,26 @@ export function Sidebar({ className, navItems, ...props }: SidebarProps) {
   console.log("Current user roles:", userRoles);
   console.log("Is admin:", isAdmin);
   
+  // Helper function to create icon element
+  const createIcon = (Icon: typeof Home): ReactNode => <Icon size={20} />;
+  
   // Filter navigation items based on admin status
-  const getNavigationItems = () => {
-    const baseItems = [
+  const getNavigationItems = (): SidebarNavItem[] => {
+    const baseItems: SidebarNavItem[] = [
       {
         title: "Dashboard",
         href: "/",
-        icon: <Home size={20} />,
+        icon: createIcon(Home),
       },
       {
         title: "Stations",
         href: "/stations",
-        icon: <Map size={20} />,
+        icon: createIcon(Map),
       },
       {
         title: "Assets",
         href: "/assets",
-        icon: <Package size={20} />,
+        icon: createIcon(Package),
         submenu: [
           {
             title: "View All",
@@ -59,12 +63,22 @@ export function Sidebar({ className, navItems, ...props }: SidebarProps) {
       {
         title: "Inventory",
         href: "/inventory",
-        icon: <BarChart3 size={20} />,
+        icon: createIcon(BarChart3),
       },
       {
         title: "Personnel",
         href: "/personnel",
-        icon: <Users size={20} />,
+        icon: createIcon(Users),
+      },
+      {
+        title: "Maintenance",
+        href: "/maintenance",
+        icon: createIcon(Wrench),
+      },
+      {
+        title: "Users",
+        href: "/users",
+        icon: createIcon(User2),
       },
     ];
     
@@ -73,7 +87,7 @@ export function Sidebar({ className, navItems, ...props }: SidebarProps) {
       {
         title: "Management",
         href: "#",
-        icon: <Wrench size={20} />,
+        icon: createIcon(Settings2),
         submenu: [
           {
             title: "Departments",
@@ -100,7 +114,7 @@ export function Sidebar({ className, navItems, ...props }: SidebarProps) {
       {
         title: "Permissions",
         href: "/permissions",
-        icon: <User2 size={20} />,
+        icon: createIcon(User2),
       }
     );
     
@@ -108,7 +122,7 @@ export function Sidebar({ className, navItems, ...props }: SidebarProps) {
     baseItems.push({
       title: "Settings",
       href: "/settings",
-      icon: <Settings size={20} />,
+      icon: createIcon(Settings),
     });
     
     return baseItems;

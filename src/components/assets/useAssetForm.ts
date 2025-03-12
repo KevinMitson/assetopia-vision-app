@@ -10,7 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { sampleUsers, assetTypeFields } from './constants';
 
 export const useAssetForm = (assetId?: string) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingAsset, setIsLoadingAsset] = useState(false);
@@ -175,6 +175,14 @@ export const useAssetForm = (assetId?: string) => {
     setIsLoading(true);
     
     try {
+      if (!session) {
+        toast.error("Authentication error", {
+          description: "You must be logged in to perform this action",
+        });
+        navigate('/auth/login');
+        return;
+      }
+      
       const assetNo = data.assetNo || (assetId ? currentAsset.asset_no : `AST${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
       
       const userName = !data.user || data.user.trim() === "" ? null : data.user.trim();
@@ -315,9 +323,17 @@ export const useAssetForm = (assetId?: string) => {
       }, 1500);
     } catch (error: any) {
       console.error('Error saving asset:', error);
-      toast.error("Failed to save asset", {
-        description: error.message || "An unexpected error occurred",
-      });
+      
+      if (error.status === 401) {
+        toast.error("Authentication error", {
+          description: "Your session has expired. Please log in again.",
+        });
+        navigate('/auth/login');
+      } else {
+        toast.error("Failed to save asset", {
+          description: error.message || "An unexpected error occurred",
+        });
+      }
     } finally {
       setIsLoading(false);
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { 
   Table, 
@@ -19,26 +19,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Button } from '@/components/ui/button';
-import { Plus, Upload, Download, Loader2, Filter, X } from 'lucide-react';
+import { Plus, Upload, Download, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ImportAssetsDialog } from '@/components/assets/ImportAssetsDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
-import { Input } from '@/components/ui/input';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { exportToCSV, prepareAssetsForExport } from '@/utils/exportUtils';
-import { useToast } from '@/components/ui/use-toast';
 
 // Define types for our asset data
 interface Asset extends Tables<'assets'> {
@@ -91,21 +76,6 @@ const Assets = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
-  
-  // Filter states
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStation, setFilterStation] = useState('All');
-  const [filterDepartment, setFilterDepartment] = useState('All');
-  const [filterEquipment, setFilterEquipment] = useState('All');
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [showFilters, setShowFilters] = useState(false);
-  
-  // Lists for filter dropdowns
-  const [stations, setStations] = useState<string[]>(['All']);
-  const [departments, setDepartments] = useState<string[]>(['All']);
-  const [equipmentTypes, setEquipmentTypes] = useState<string[]>(['All']);
-  const [statusTypes, setStatusTypes] = useState<string[]>(['All']);
   
   // Fetch assets from Supabase
   useEffect(() => {
@@ -141,17 +111,6 @@ const Assets = () => {
         );
         
         setAssets(assetsWithHistory);
-        
-        // Extract unique values for filters
-        const uniqueStations = ['All', ...new Set(assetsWithHistory.map(asset => asset.location))];
-        const uniqueDepartments = ['All', ...new Set(assetsWithHistory.map(asset => asset.department))];
-        const uniqueEquipment = ['All', ...new Set(assetsWithHistory.map(asset => asset.equipment))];
-        const uniqueStatus = ['All', ...new Set(assetsWithHistory.map(asset => asset.status))];
-        
-        setStations(uniqueStations);
-        setDepartments(uniqueDepartments);
-        setEquipmentTypes(uniqueEquipment);
-        setStatusTypes(uniqueStatus);
       } catch (error) {
         console.error('Error fetching assets:', error);
         setError('Failed to load assets. Please try again.');
@@ -164,7 +123,7 @@ const Assets = () => {
   }, []);
   
   // Calculate statistics for analytics tab
-  const statusData = useMemo(() => {
+  const statusData = React.useMemo(() => {
     if (!assets.length) return sampleStatusData;
     
     const statusCounts: Record<string, number> = {};
@@ -191,7 +150,7 @@ const Assets = () => {
     }));
   }, [assets]);
   
-  const departmentData = useMemo(() => {
+  const departmentData = React.useMemo(() => {
     if (!assets.length) return sampleDepartmentData;
     
     const deptCounts: Record<string, number> = {};
@@ -205,75 +164,13 @@ const Assets = () => {
       .sort((a, b) => b.count - a.count);
   }, [assets]);
   
-  // Filter assets based on all criteria
-  const filteredAssets = useMemo(() => {
-    return assets.filter(asset => {
-      // Search term filter
-      const matchesSearch = searchTerm === '' || 
-        asset.asset_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.serial_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.equipment.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (asset.user_name && asset.user_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        asset.department.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      // Station filter
-      const matchesStation = filterStation === 'All' || asset.location === filterStation;
-      
-      // Department filter
-      const matchesDepartment = filterDepartment === 'All' || asset.department === filterDepartment;
-      
-      // Equipment filter
-      const matchesEquipment = filterEquipment === 'All' || asset.equipment === filterEquipment;
-      
-      // Status filter
-      const matchesStatus = filterStatus === 'All' || asset.status === filterStatus;
-      
-      return matchesSearch && matchesStation && matchesDepartment && matchesEquipment && matchesStatus;
-    });
-  }, [assets, searchTerm, filterStation, filterDepartment, filterEquipment, filterStatus]);
-  
   const handleAddAsset = () => {
-    navigate('/assets/add');
+    navigate('/add-asset');
   };
   
   const handleImportSuccess = () => {
     // Reload data after successful import
     window.location.reload();
-  };
-  
-  const handleExportToCSV = () => {
-    try {
-      // Prepare data for export
-      const exportData = prepareAssetsForExport(filteredAssets);
-      
-      // Generate filename with date
-      const date = new Date().toISOString().split('T')[0];
-      const filename = `assets_export_${date}`;
-      
-      // Export to CSV
-      exportToCSV(exportData, filename);
-      
-      toast({
-        title: "Export Successful",
-        description: `${filteredAssets.length} assets exported to CSV`,
-      });
-    } catch (error) {
-      console.error('Error exporting to CSV:', error);
-      toast({
-        title: "Export Failed",
-        description: "Failed to export assets to CSV",
-        variant: "destructive",
-      });
-    }
-  };
-  
-  const resetFilters = () => {
-    setSearchTerm('');
-    setFilterStation('All');
-    setFilterDepartment('All');
-    setFilterEquipment('All');
-    setFilterStatus('All');
   };
   
   return (
@@ -289,10 +186,6 @@ const Assets = () => {
               <Upload className="mr-2 h-4 w-4" />
               Import
             </Button>
-            <Button variant="outline" onClick={handleExportToCSV}>
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
             <Button onClick={handleAddAsset}>
               <Plus className="mr-2 h-4 w-4" />
               Add Asset
@@ -307,174 +200,10 @@ const Assets = () => {
           </TabsList>
           
           <TabsContent value="list" className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-              <div className="w-full sm:w-64">
-                <Input
-                  placeholder="Search assets..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <div className="flex gap-2">
-                <Popover open={showFilters} onOpenChange={setShowFilters}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="gap-1">
-                      <Filter className="h-4 w-4" />
-                      Filters
-                      {(filterStation !== 'All' || filterDepartment !== 'All' || 
-                        filterEquipment !== 'All' || filterStatus !== 'All') && (
-                        <Badge className="ml-1 bg-primary text-primary-foreground">
-                          {[
-                            filterStation !== 'All' ? 1 : 0,
-                            filterDepartment !== 'All' ? 1 : 0,
-                            filterEquipment !== 'All' ? 1 : 0,
-                            filterStatus !== 'All' ? 1 : 0
-                          ].reduce((a, b) => a + b, 0)}
-                        </Badge>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80">
-                    <div className="space-y-4">
-                      <h4 className="font-medium">Filter Assets</h4>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Station</label>
-                        <Select value={filterStation} onValueChange={setFilterStation}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select station" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {stations.map(station => (
-                              <SelectItem key={station} value={station}>
-                                {station}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Department</label>
-                        <Select value={filterDepartment} onValueChange={setFilterDepartment}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select department" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {departments.map(dept => (
-                              <SelectItem key={dept} value={dept}>
-                                {dept}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Equipment Type</label>
-                        <Select value={filterEquipment} onValueChange={setFilterEquipment}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select equipment type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {equipmentTypes.map(type => (
-                              <SelectItem key={type} value={type}>
-                                {type}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Status</label>
-                        <Select value={filterStatus} onValueChange={setFilterStatus}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statusTypes.map(status => (
-                              <SelectItem key={status} value={status}>
-                                {status}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <div className="flex justify-between pt-2">
-                        <Button variant="outline" size="sm" onClick={resetFilters}>
-                          Reset Filters
-                        </Button>
-                        <Button size="sm" onClick={() => setShowFilters(false)}>
-                          Apply Filters
-                        </Button>
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-                
-                {(filterStation !== 'All' || filterDepartment !== 'All' || 
-                  filterEquipment !== 'All' || filterStatus !== 'All') && (
-                  <Button variant="ghost" size="icon" onClick={resetFilters}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-            
-            {/* Active filters display */}
-            {(filterStation !== 'All' || filterDepartment !== 'All' || 
-              filterEquipment !== 'All' || filterStatus !== 'All') && (
-              <div className="flex flex-wrap gap-2 text-sm">
-                <span className="text-muted-foreground">Active filters:</span>
-                {filterStation !== 'All' && (
-                  <Badge variant="secondary" className="gap-1">
-                    Station: {filterStation}
-                    <X 
-                      className="h-3 w-3 cursor-pointer" 
-                      onClick={() => setFilterStation('All')} 
-                    />
-                  </Badge>
-                )}
-                {filterDepartment !== 'All' && (
-                  <Badge variant="secondary" className="gap-1">
-                    Department: {filterDepartment}
-                    <X 
-                      className="h-3 w-3 cursor-pointer" 
-                      onClick={() => setFilterDepartment('All')} 
-                    />
-                  </Badge>
-                )}
-                {filterEquipment !== 'All' && (
-                  <Badge variant="secondary" className="gap-1">
-                    Equipment: {filterEquipment}
-                    <X 
-                      className="h-3 w-3 cursor-pointer" 
-                      onClick={() => setFilterEquipment('All')} 
-                    />
-                  </Badge>
-                )}
-                {filterStatus !== 'All' && (
-                  <Badge variant="secondary" className="gap-1">
-                    Status: {filterStatus}
-                    <X 
-                      className="h-3 w-3 cursor-pointer" 
-                      onClick={() => setFilterStatus('All')} 
-                    />
-                  </Badge>
-                )}
-              </div>
-            )}
-            
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle>All Assets</CardTitle>
-                <CardDescription>
-                  {filteredAssets.length} {filteredAssets.length === 1 ? 'asset' : 'assets'} found
-                  {(filterStation !== 'All' || filterDepartment !== 'All' || 
-                    filterEquipment !== 'All' || filterStatus !== 'All') && ' matching your filters'}
-                </CardDescription>
+                <CardDescription>Complete inventory of all company equipment</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -486,9 +215,9 @@ const Assets = () => {
                   <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
                     {error}
                   </div>
-                ) : filteredAssets.length === 0 ? (
+                ) : assets.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <p>No assets found. {assets.length > 0 ? 'Try adjusting your filters.' : 'Add your first asset or import from Excel.'}</p>
+                    <p>No assets found. Add your first asset or import from Excel.</p>
                   </div>
                 ) : (
                   <div className="rounded-md border overflow-hidden">
@@ -506,7 +235,7 @@ const Assets = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredAssets.map((asset) => (
+                        {assets.map((asset) => (
                           <TableRow key={asset.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/assets/${asset.id}`)}>
                             <TableCell className="font-medium">{asset.asset_no}</TableCell>
                             <TableCell>{asset.equipment}</TableCell>

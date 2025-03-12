@@ -1,4 +1,3 @@
-
 import { 
   Card, 
   CardContent, 
@@ -28,6 +27,7 @@ interface Station {
 
 interface StationOverviewProps {
   stations: Station[];
+  loading?: boolean;
 }
 
 const getStatusStyles = (status: Station['status']) => {
@@ -43,7 +43,28 @@ const getStatusStyles = (status: Station['status']) => {
   }
 };
 
-export function StationOverview({ stations }: StationOverviewProps) {
+// Skeleton row component for loading state
+const SkeletonRow = () => (
+  <TableRow>
+    <TableCell>
+      <div className="h-4 w-24 bg-secondary animate-pulse rounded-md"></div>
+    </TableCell>
+    <TableCell>
+      <div className="h-4 w-12 bg-secondary animate-pulse rounded-md"></div>
+    </TableCell>
+    <TableCell>
+      <div className="flex items-center gap-2">
+        <div className="h-2 w-full bg-secondary animate-pulse rounded-md"></div>
+        <div className="h-4 w-8 bg-secondary animate-pulse rounded-md"></div>
+      </div>
+    </TableCell>
+    <TableCell className="text-right">
+      <div className="h-6 w-24 bg-secondary animate-pulse rounded-md ml-auto"></div>
+    </TableCell>
+  </TableRow>
+);
+
+export function StationOverview({ stations, loading = false }: StationOverviewProps) {
   return (
     <Card>
       <CardHeader>
@@ -61,23 +82,42 @@ export function StationOverview({ stations }: StationOverviewProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {stations.map((station) => (
-              <TableRow key={station.id}>
-                <TableCell className="font-medium">{station.name}</TableCell>
-                <TableCell>{station.assetsCount}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Progress value={station.utilization} className="h-2" />
-                    <span className="text-xs">{station.utilization}%</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Badge className={getStatusStyles(station.status)}>
-                    {station.status}
-                  </Badge>
+            {loading ? (
+              // Show skeleton rows when loading
+              <>
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </>
+            ) : stations.length > 0 ? (
+              // Show station data when loaded
+              stations.map((station) => (
+                <TableRow key={station.id}>
+                  <TableCell className="font-medium">{station.name}</TableCell>
+                  <TableCell>{station.assetsCount}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Progress value={station.utilization} className="h-2" />
+                      <span className="text-xs">{station.utilization}%</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Badge className={getStatusStyles(station.status)}>
+                      {station.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              // Show message when no stations
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                  No stations available
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </CardContent>

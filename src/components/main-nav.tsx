@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 
@@ -11,7 +10,7 @@ export function MainNav({ className }: MainNavProps) {
     <div className={cn("flex items-center mb-4", className)}>
       <Link to="/" className="flex items-center space-x-2">
         <span className="hidden font-bold sm:inline-block">
-          Assetopia Vision
+          ZACL_INVENTORY
         </span>
       </Link>
     </div>

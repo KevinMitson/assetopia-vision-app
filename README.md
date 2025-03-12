@@ -1,69 +1,75 @@
-# Welcome to your Lovable project
+# ZACL_INVENTORY
 
-## Project info
+A comprehensive inventory management system for tracking and managing assets.
 
-**URL**: https://lovable.dev/projects/72014a65-bb6a-4533-9e06-ca0778050f85
+## Getting Started
 
-## How can I edit this code?
+### Prerequisites
 
-There are several ways of editing your application.
+- Node.js (v14 or higher)
+- npm or yarn
 
-**Use Lovable**
+### Installation
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/72014a65-bb6a-4533-9e06-ca0778050f85) and start prompting.
+1. Clone the repository
+   ```
+   git clone https://github.com/yourusername/zacl_inventory.git
+   cd zacl_inventory
+   ```
 
-Changes made via Lovable will be committed automatically to this repo.
+2. Install dependencies
+   ```
+   npm install
+   # or
+   yarn install
+   ```
 
-**Use your preferred IDE**
+3. Start the development server
+   ```
+   npm run dev
+   # or
+   yarn dev
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Creating an Admin User
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+There are two ways to create an admin user:
 
-Follow these steps:
+### Method 1: Using the Admin Creation Script (Recommended)
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1. Make sure you have Node.js installed
+2. Open a terminal in the project root directory
+3. Run the admin creation script:
+   ```
+   node create-admin.js
+   ```
+4. Follow the prompts to enter the admin email, password, and full name
+5. The script will create the admin user and assign the admin role
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Method 2: Using the Mock Superadmin (Development Only)
 
-# Step 3: Install the necessary dependencies.
-npm i
+For development and testing purposes, you can use the built-in mock superadmin:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+- Email: kevin.mitson@example.com
+- Password: password
 
-**Edit a file directly in GitHub**
+**Note:** The mock superadmin doesn't create real data in the database. It's recommended to use Method 1 for creating real admin users.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Features
 
-**Use GitHub Codespaces**
+- Asset tracking and management
+- User management
+- Department and location tracking
+- Maintenance scheduling
+- Asset assignment history
+- Reporting and analytics
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Security
 
-## What technologies are used for this project?
+- Role-based access control
+- Secure authentication with Supabase
+- Data validation and sanitization
 
-This project is built with .
+## License
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/72014a65-bb6a-4533-9e06-ca0778050f85) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+This project is licensed under the MIT License - see the LICENSE file for details. 

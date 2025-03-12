@@ -111,16 +111,12 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <button 
-                  type="button"
-                  onClick={() => toast({
-                    title: "Password Reset",
-                    description: "Please contact your administrator to reset your password.",
-                  })}
-                  className="text-sm text-primary hover:underline bg-transparent border-none cursor-pointer p-0"
+                <Link 
+                  to="/forgot-password" 
+                  className="text-sm text-primary hover:underline"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <Input
                 id="password"
@@ -155,4 +151,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default Login; 
