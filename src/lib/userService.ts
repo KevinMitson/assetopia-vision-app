@@ -72,6 +72,11 @@ export async function fetchAllUsers() {
     }
 
     console.log('Role users fetched:', roleUsers?.length || 0);
+    
+    // Debug: Log the first user to see its structure
+    if (roleUsers && roleUsers.length > 0) {
+      console.log('First user data structure:', JSON.stringify(roleUsers[0], null, 2));
+    }
 
     if (!roleUsers || roleUsers.length === 0) {
       return { users: [], error: null };
@@ -81,12 +86,38 @@ export async function fetchAllUsers() {
     const transformedUsers = roleUsers
       .filter(ru => ru.users) // Filter out any null users
       .map(ru => {
-        // Extract user metadata
-        const metadata = ru.users.raw_user_meta_data || {};
+        // Extract user metadata - ensure it's properly parsed
+        let metadata: {
+          full_name?: string;
+          department?: string;
+          station?: string;
+          designation?: string;
+          [key: string]: any;
+        } = {};
+        
+        try {
+          if (typeof ru.users.raw_user_meta_data === 'string') {
+            metadata = JSON.parse(ru.users.raw_user_meta_data);
+          } else {
+            metadata = ru.users.raw_user_meta_data || {};
+          }
+        } catch (e) {
+          console.error('Error parsing user metadata:', e);
+          metadata = {};
+        }
+        
+        // Debug log for metadata
+        console.log(`User ${ru.user_id} metadata:`, metadata);
+        
+        // Ensure we have a fallback for full_name
+        const fullName = 
+          metadata.full_name || 
+          ru.users.email?.split('@')[0] || 
+          `User ${ru.user_id.substring(0, 8)}`;
         
         return {
           id: ru.user_id,
-          full_name: metadata.full_name || ru.users.email?.split('@')[0] || ru.user_id.substring(0, 8),
+          full_name: fullName,
           email: ru.users.email,
           department: metadata.department,
           station: metadata.station,
@@ -99,6 +130,11 @@ export async function fetchAllUsers() {
       });
 
     console.log('Transformed users:', transformedUsers.length);
+    
+    // Debug: Log the first transformed user
+    if (transformedUsers.length > 0) {
+      console.log('First transformed user:', transformedUsers[0]);
+    }
 
     return { users: transformedUsers as User[], error: null };
   } catch (error: any) {

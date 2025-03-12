@@ -22,7 +22,7 @@ SELECT create_user(
 
 SELECT create_user(
     'user1@example.com',
-    'Regular User',
+    'John Smith',
     'Operations',
     'Terminal 1',
     'Operator',
@@ -31,7 +31,7 @@ SELECT create_user(
 
 SELECT create_user(
     'user2@example.com',
-    'Another User',
+    'Sarah Johnson',
     'Maintenance',
     'Workshop',
     'Technician',
@@ -40,19 +40,47 @@ SELECT create_user(
 
 SELECT create_user(
     'manager@example.com',
-    'Department Manager',
+    'Michael Brown',
     'Operations',
     'Terminal 2',
-    'Manager',
+    'Department Manager',
     'Admin'
 );
 
 SELECT create_user(
     'tech@example.com',
-    'Technical Support',
+    'Emily Davis',
     'IT',
     'HQ',
     'Support Specialist',
+    'User'
+);
+
+-- Add some users for each department
+SELECT create_user(
+    'finance1@example.com',
+    'Robert Wilson',
+    'Finance',
+    'HQ',
+    'Accountant',
+    'User'
+);
+
+SELECT create_user(
+    'hr1@example.com',
+    'Jennifer Lee',
+    'Human Resources',
+    'HQ',
+    'HR Specialist',
+    'User'
+);
+
+SELECT create_user(
+    'security1@example.com',
+    'David Martinez',
+    'Security',
+    'Terminal 1',
+    'Security Officer',
     'User'
 );
 

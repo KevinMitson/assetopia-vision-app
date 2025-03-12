@@ -76,6 +76,7 @@ RETURNS UUID AS $$
 DECLARE
     v_user_id UUID;
     v_role_id UUID;
+    v_metadata JSONB;
 BEGIN
     -- Ensure roles exist
     PERFORM create_roles_if_not_exists();
@@ -84,6 +85,24 @@ BEGIN
     SELECT id INTO v_user_id
     FROM auth.users
     WHERE email = p_email;
+    
+    -- Create user metadata
+    v_metadata := jsonb_build_object(
+        'full_name', p_full_name
+    );
+    
+    -- Add optional fields to metadata if they're not null
+    IF p_department IS NOT NULL THEN
+        v_metadata := v_metadata || jsonb_build_object('department', p_department);
+    END IF;
+    
+    IF p_station IS NOT NULL THEN
+        v_metadata := v_metadata || jsonb_build_object('station', p_station);
+    END IF;
+    
+    IF p_designation IS NOT NULL THEN
+        v_metadata := v_metadata || jsonb_build_object('designation', p_designation);
+    END IF;
     
     -- Create user if they don't exist
     IF v_user_id IS NULL THEN
@@ -105,13 +124,14 @@ BEGIN
             now(),
             now(),
             now(),
-            jsonb_build_object(
-                'full_name', p_full_name,
-                'department', p_department,
-                'station', p_station,
-                'designation', p_designation
-            )
+            v_metadata
         );
+    ELSE
+        -- Update existing user's metadata
+        UPDATE auth.users
+        SET raw_user_meta_data = v_metadata,
+            updated_at = now()
+        WHERE id = v_user_id;
     END IF;
     
     -- Get role ID
