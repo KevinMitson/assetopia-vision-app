@@ -37,7 +37,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { fetchAllUsers, User } from '@/lib/userService';
+import { fetchAllUsers } from '@/lib/userService';
+import { User } from '@/types';
 
 export default function Users() {
   const [activeTab, setActiveTab] = useState('list');
@@ -50,10 +51,10 @@ export default function Users() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterStation, setFilterStation] = useState<string>('');
   const [filterDepartment, setFilterDepartment] = useState<string>('');
-  const [filterDesignation, setFilterDesignation] = useState<string>('');
+  const [filterRole, setFilterRole] = useState<string>('');
   const [stations, setStations] = useState<string[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
-  const [designations, setDesignations] = useState<string[]>([]);
+  const [roles, setRoles] = useState<string[]>([]);
   const { toast } = useToast();
 
   // Fetch users data
@@ -80,11 +81,11 @@ export default function Users() {
       if (users && users.length > 0) {
         const uniqueStations = [...new Set(users.map(user => user.station).filter(Boolean))];
         const uniqueDepartments = [...new Set(users.map(user => user.department).filter(Boolean))];
-        const uniqueDesignations = [...new Set(users.map(user => user.designation).filter(Boolean))];
+        const uniqueRoles = [...new Set(users.map(user => user.role_name).filter(Boolean))];
         
         setStations(uniqueStations);
         setDepartments(uniqueDepartments);
-        setDesignations(uniqueDesignations);
+        setRoles(uniqueRoles);
       }
     } catch (error: any) {
       console.error('Error fetching users:', error);
@@ -103,31 +104,30 @@ export default function Users() {
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
       const matchesSearch = searchTerm === '' || 
-        user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.designation.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.department.toLowerCase().includes(searchTerm.toLowerCase());
+        (user.full_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.email?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.department?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.role_name?.toLowerCase().includes(searchTerm.toLowerCase()));
       
       const matchesStation = filterStation === '' || user.station === filterStation;
       const matchesDepartment = filterDepartment === '' || user.department === filterDepartment;
-      const matchesDesignation = filterDesignation === '' || user.designation === filterDesignation;
+      const matchesRole = filterRole === '' || user.role_name === filterRole;
       
-      return matchesSearch && matchesStation && matchesDepartment && matchesDesignation;
+      return matchesSearch && matchesStation && matchesDepartment && matchesRole;
     });
-  }, [users, searchTerm, filterStation, filterDepartment, filterDesignation]);
+  }, [users, searchTerm, filterStation, filterDepartment, filterRole]);
 
   // Handle export to Excel
   const handleExport = () => {
     try {
       // Prepare data for export
       const exportData = filteredUsers.map(user => ({
-        'Name': user.full_name,
-        'Designation': user.designation,
-        'Department': user.department,
-        'Email': user.email,
-        'Phone': user.phone,
-        'Station': user.station,
-        'Status': user.status
+        'Name': user.full_name || '',
+        'Email': user.email || '',
+        'Role': user.role_name || '',
+        'Department': user.department || '',
+        'Station': user.station || '',
+        'Created At': new Date(user.created_at).toLocaleDateString()
       }));
 
       // Create worksheet
@@ -157,7 +157,7 @@ export default function Users() {
     setSearchTerm('');
     setFilterStation('');
     setFilterDepartment('');
-    setFilterDesignation('');
+    setFilterRole('');
     setShowFilters(false);
   };
 
@@ -165,7 +165,7 @@ export default function Users() {
   const activeFiltersCount = [
     filterStation, 
     filterDepartment, 
-    filterDesignation
+    filterRole
   ].filter(Boolean).length;
 
   return (
@@ -225,6 +225,22 @@ export default function Users() {
                       <div className="space-y-4">
                         <h4 className="font-medium">Filter Users</h4>
                         <div className="space-y-2">
+                          <Label htmlFor="role">Role</Label>
+                          <Select value={filterRole} onValueChange={setFilterRole}>
+                            <SelectTrigger id="role">
+                              <SelectValue placeholder="All Roles" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">All Roles</SelectItem>
+                              {roles.map((role) => (
+                                <SelectItem key={role} value={role}>
+                                  {role}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
                           <Label htmlFor="station">Station</Label>
                           <Select value={filterStation} onValueChange={setFilterStation}>
                             <SelectTrigger id="station">
@@ -251,22 +267,6 @@ export default function Users() {
                               {departments.map((department) => (
                                 <SelectItem key={department} value={department}>
                                   {department}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="designation">Designation</Label>
-                          <Select value={filterDesignation} onValueChange={setFilterDesignation}>
-                            <SelectTrigger id="designation">
-                              <SelectValue placeholder="All Designations" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="">All Designations</SelectItem>
-                              {designations.map((designation) => (
-                                <SelectItem key={designation} value={designation}>
-                                  {designation}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -302,6 +302,15 @@ export default function Users() {
               {/* Active filters display */}
               {activeFiltersCount > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
+                  {filterRole && (
+                    <Badge variant="secondary" className="flex items-center gap-1">
+                      Role: {filterRole}
+                      <X 
+                        className="h-3 w-3 cursor-pointer" 
+                        onClick={() => setFilterRole('')}
+                      />
+                    </Badge>
+                  )}
                   {filterStation && (
                     <Badge variant="secondary" className="flex items-center gap-1">
                       Station: {filterStation}
@@ -317,15 +326,6 @@ export default function Users() {
                       <X 
                         className="h-3 w-3 cursor-pointer" 
                         onClick={() => setFilterDepartment('')}
-                      />
-                    </Badge>
-                  )}
-                  {filterDesignation && (
-                    <Badge variant="secondary" className="flex items-center gap-1">
-                      Designation: {filterDesignation}
-                      <X 
-                        className="h-3 w-3 cursor-pointer" 
-                        onClick={() => setFilterDesignation('')}
                       />
                     </Badge>
                   )}
@@ -371,26 +371,24 @@ export default function Users() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>Designation</TableHead>
-                        <TableHead>Department</TableHead>
                         <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Department</TableHead>
                         <TableHead>Station</TableHead>
-                        <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredUsers.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">{user.full_name}</TableCell>
-                          <TableCell>{user.designation}</TableCell>
-                          <TableCell>{user.department}</TableCell>
                           <TableCell>{user.email}</TableCell>
-                          <TableCell>{user.station}</TableCell>
                           <TableCell>
-                            <Badge variant={user.status === 'Active' ? "default" : "secondary"}>
-                              {user.status}
+                            <Badge variant="outline">
+                              {user.role_name || 'User'}
                             </Badge>
                           </TableCell>
+                          <TableCell>{user.department}</TableCell>
+                          <TableCell>{user.station}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -406,24 +404,82 @@ export default function Users() {
             <CardHeader>
               <CardTitle>User Analytics</CardTitle>
               <CardDescription>
-                Overview of user distribution across departments and stations
+                Overview of user distribution across roles, departments and stations
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">Role Distribution</h3>
+                  {/* Role distribution chart would go here */}
+                  <div className="space-y-2">
+                    {roles.map(role => {
+                      const count = users.filter(user => user.role_name === role).length;
+                      const percentage = Math.round((count / users.length) * 100);
+                      return (
+                        <div key={role} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>{role}</span>
+                            <span>{count} ({percentage}%)</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-primary h-2 rounded-full" 
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <h3 className="text-lg font-medium">Department Distribution</h3>
                   {/* Department distribution chart would go here */}
-                  <p className="text-muted-foreground text-sm">
-                    Analytics visualization will be implemented in a future update.
-                  </p>
+                  <div className="space-y-2">
+                    {departments.map(dept => {
+                      const count = users.filter(user => user.department === dept).length;
+                      const percentage = Math.round((count / users.length) * 100);
+                      return (
+                        <div key={dept} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>{dept}</span>
+                            <span>{count} ({percentage}%)</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-primary h-2 rounded-full" 
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-lg font-medium">Station Distribution</h3>
                   {/* Station distribution chart would go here */}
-                  <p className="text-muted-foreground text-sm">
-                    Analytics visualization will be implemented in a future update.
-                  </p>
+                  <div className="space-y-2">
+                    {stations.map(station => {
+                      const count = users.filter(user => user.station === station).length;
+                      const percentage = Math.round((count / users.length) * 100);
+                      return (
+                        <div key={station} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>{station}</span>
+                            <span>{count} ({percentage}%)</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-primary h-2 rounded-full" 
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </CardContent>
