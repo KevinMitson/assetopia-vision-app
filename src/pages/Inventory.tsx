@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { Laptop, Monitor, FileText, Printer, Server, Smartphone, Tablet, Network, Key, Package, Filter, X } from 'lucide-react';
+import { 
+  Laptop, Monitor, FileText, Printer, Server, Smartphone, 
+  Tablet, Network, Key, Package, Filter, X, Calendar, User, 
+  Building, Info, Tag, HardDrive, Box, AlertCircle, MapPin, Search
+} from 'lucide-react';
 import { 
   Table, 
   TableBody, 
@@ -14,7 +18,8 @@ import {
   CardContent, 
   CardDescription, 
   CardHeader, 
-  CardTitle 
+  CardTitle,
+  CardFooter
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -36,6 +41,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Define types for asset data
 interface AssignmentHistory {
@@ -130,6 +147,10 @@ const Inventory = () => {
   const [statusTypes, setStatusTypes] = useState<string[]>(['All']);
   const [users, setUsers] = useState<string[]>(['All']);
   
+  // Selected asset for details modal
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  
   // Fetch assets from Supabase
   useEffect(() => {
     const fetchAssets = async () => {
@@ -150,18 +171,18 @@ const Inventory = () => {
           // Generate chart data
           generateChartData(data as Asset[]);
           
-          // Extract unique values for filters
-          const uniqueStations = ['All', ...new Set(data.map(asset => asset.location))];
-          const uniqueDepartments = ['All', ...new Set(data.map(asset => asset.department))];
-          const uniqueEquipment = ['All', ...new Set(data.map(asset => asset.equipment))];
-          const uniqueStatus = ['All', ...new Set(data.map(asset => asset.status))];
-          const uniqueUsers = ['All', ...new Set(data.map(asset => asset.user_name).filter(Boolean))];
+          // Extract unique values for filters with proper typing
+          const uniqueStations = ['All', ...new Set(data.map(asset => asset.location))].filter(Boolean) as string[];
+          const uniqueDepartments = ['All', ...new Set(data.map(asset => asset.department))].filter(Boolean) as string[];
+          const uniqueEquipment = ['All', ...new Set(data.map(asset => asset.equipment))].filter(Boolean) as string[];
+          const uniqueStatuses = ['All', ...new Set(data.map(asset => asset.status))].filter(Boolean) as string[];
+          const uniqueUsers = ['All', ...new Set(data.map(asset => asset.user_name || 'Unassigned'))].filter(Boolean) as string[];
           
           setStations(uniqueStations);
           setDepartments(uniqueDepartments);
           setEquipmentTypes(uniqueEquipment);
-          setStatusTypes(uniqueStatus);
-          setUsers(uniqueUsers as string[]);
+          setStatusTypes(uniqueStatuses);
+          setUsers(uniqueUsers);
         }
       } catch (error) {
         console.error('Error fetching assets:', error);
@@ -173,7 +194,7 @@ const Inventory = () => {
     fetchAssets();
   }, []);
   
-  // Generate chart data
+  // Function to generate chart data
   const generateChartData = (assetData: Asset[]) => {
     // Status data
     const statusCounts: Record<string, number> = {};
@@ -250,10 +271,12 @@ const Inventory = () => {
       color: locationColors[location] || '#9e9e9e'
     }));
     
-    const departmentChartData = Object.keys(departmentCounts).map(department => ({
+    const departmentChartData = Object.keys(departmentCounts)
+      .map(department => ({
       name: department,
       count: departmentCounts[department]
-    }));
+      }))
+      .sort((a, b) => b.count - a.count);
     
     // Set state
     setStatusData(statusChartData);
@@ -262,41 +285,47 @@ const Inventory = () => {
     setDepartmentData(departmentChartData);
   };
   
-  // Filter assets based on all criteria
+  // Apply filters and search to assets
   const filteredAssets = useMemo(() => {
     return assets.filter(asset => {
-      // Search term filter
+      // Search filter
       const matchesSearch = searchTerm === '' || 
-        asset.asset_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.serial_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.equipment.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (asset.user_name && asset.user_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        asset.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (asset.pc_name && asset.pc_name.toLowerCase().includes(searchTerm.toLowerCase()));
+        Object.values(asset).some(
+          value => typeof value === 'string' && value.toLowerCase().includes(searchTerm.toLowerCase())
+        );
       
-      // Station filter
+      // Dropdown filters
       const matchesStation = filterStation === 'All' || asset.location === filterStation;
-      
-      // Department filter
       const matchesDepartment = filterDepartment === 'All' || asset.department === filterDepartment;
-      
-      // Equipment filter
       const matchesEquipment = filterEquipment === 'All' || asset.equipment === filterEquipment;
-      
-      // Status filter
       const matchesStatus = filterStatus === 'All' || asset.status === filterStatus;
+      const matchesUser = filterUser === 'All' || asset.user_name === filterUser || 
+        (filterUser === 'Unassigned' && !asset.user_name);
       
-      // User filter
-      const matchesUser = filterUser === 'All' || asset.user_name === filterUser;
-      
-      return matchesSearch && matchesStation && matchesDepartment && matchesEquipment && matchesStatus && matchesUser;
+      return matchesSearch && matchesStation && matchesDepartment && 
+        matchesEquipment && matchesStatus && matchesUser;
     });
   }, [assets, searchTerm, filterStation, filterDepartment, filterEquipment, filterStatus, filterUser]);
   
-  // Reset all filters
+  // Calculate active filter count
+  const activeFilterCount = [
+    filterStation !== 'All',
+    filterDepartment !== 'All',
+    filterEquipment !== 'All',
+    filterStatus !== 'All',
+    filterUser !== 'All'
+  ].filter(Boolean).length;
+  
+  // Check if any filters are active
+  const hasActiveFilters = 
+    filterStation !== 'All' || 
+    filterDepartment !== 'All' || 
+    filterEquipment !== 'All' || 
+    filterStatus !== 'All' || 
+    filterUser !== 'All';
+  
+  // Function to reset all filters
   const resetFilters = () => {
-    setSearchTerm('');
     setFilterStation('All');
     setFilterDepartment('All');
     setFilterEquipment('All');
@@ -304,102 +333,327 @@ const Inventory = () => {
     setFilterUser('All');
   };
   
-  // Check if any filters are active
-  const hasActiveFilters = filterStation !== 'All' || 
-    filterDepartment !== 'All' || 
-    filterEquipment !== 'All' || 
-    filterStatus !== 'All' || 
-    filterUser !== 'All';
+  // Function to handle row click and show details
+  const handleRowClick = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setDetailsDialogOpen(true);
+  };
+  
+  // Helper function to format dates
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
   
   return (
     <Layout>
       <div className="space-y-6 animate-fadeIn">
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-1">Inventory Management</h1>
-            <p className="text-muted-foreground">Manage and track all company equipment across stations</p>
-          </div>
+          <h1 className="text-3xl font-bold tracking-tight">Inventory Management</h1>
           <Button onClick={() => navigate('/assets/add')}>Add New Asset</Button>
         </div>
         
-        <Tabs defaultValue="list" onValueChange={setActiveTab} className="space-y-4">
+        {/* Asset Details Dialog */}
+        <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-xl">Asset Details</DialogTitle>
+              <DialogDescription>
+                {selectedAsset?.equipment} - {selectedAsset?.model}
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedAsset && (
+              <ScrollArea className="flex-1 pr-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                  {/* Basic Information */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center">
+                        <Info className="mr-2 h-4 w-4" />
+                        Basic Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Serial Number</p>
+                        <p className="font-medium">{selectedAsset.serial_no}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Asset Number</p>
+                        <p>{selectedAsset.asset_no || '-'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Equipment Type</p>
+                        <div className="flex items-center">
+                          {getEquipmentIcon(selectedAsset.equipment)}
+                          <span>{selectedAsset.equipment}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Model</p>
+                        <p>{selectedAsset.model}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Status</p>
+                        <Badge className={getStatusBadge(selectedAsset.status)}>
+                          {selectedAsset.status}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Purchase Date</p>
+                        <p>{formatDate(selectedAsset.purchase_date)}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Assignment Information */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center">
+                        <User className="mr-2 h-4 w-4" />
+                        Assignment Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Department Section</p>
+                        <p>{selectedAsset.department_section || '-'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Department</p>
+                        <p>{selectedAsset.department || '-'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Assigned To</p>
+                        <p>{selectedAsset.user_name || 'Not Assigned'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Designation</p>
+                        <p>{selectedAsset.designation || '-'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Location</p>
+                        <p className="flex items-center">
+                          <MapPin className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
+                          {selectedAsset.location || '-'}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Technical Specifications */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center">
+                        <HardDrive className="mr-2 h-4 w-4" />
+                        Technical Specifications
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">PC Name</p>
+                        <p>{selectedAsset.pc_name || '-'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Operating System</p>
+                        <p>{selectedAsset.os || '-'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">RAM</p>
+                        <p>{selectedAsset.ram || '-'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Storage</p>
+                        <p>{selectedAsset.storage || '-'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">OE Tag</p>
+                        <p>{selectedAsset.oe_tag || '-'}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Maintenance Information */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Maintenance Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Last Maintenance</p>
+                        <p>{formatDate(selectedAsset.last_maintenance)}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-muted-foreground">Next Maintenance</p>
+                        <p>{formatDate(selectedAsset.next_maintenance)}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Assignment History */}
+                  {selectedAsset.assignment_history && selectedAsset.assignment_history.length > 0 && (
+                    <Card className="md:col-span-2">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center">
+                          <FileText className="mr-2 h-4 w-4" />
+                          Assignment History
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="rounded-md border overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>User</TableHead>
+                                <TableHead>Department</TableHead>
+                                <TableHead>From Date</TableHead>
+                                <TableHead>To Date</TableHead>
+                                <TableHead>Reason</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {selectedAsset.assignment_history.map((history) => (
+                                <TableRow key={history.id}>
+                                  <TableCell>{history.user_name || '-'}</TableCell>
+                                  <TableCell>{history.department || '-'}</TableCell>
+                                  <TableCell>{formatDate(history.from_date)}</TableCell>
+                                  <TableCell>{formatDate(history.to_date)}</TableCell>
+                                  <TableCell>{history.reason || '-'}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </ScrollArea>
+            )}
+            
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/assets/${selectedAsset?.id}`)}
+              >
+                View Full Details
+              </Button>
+              <DialogClose asChild>
+                <Button>Close</Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        
+        <Tabs defaultValue="list" value={activeTab} onValueChange={setActiveTab}>
+          <div className="flex justify-between items-center mb-4">
           <TabsList>
-            <TabsTrigger value="list">Asset List</TabsTrigger>
+              <TabsTrigger value="list">List View</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="list" className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-4">
-              <div className="w-full sm:w-64">
+            <div className="flex space-x-2">
+              <div className="relative w-64">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
+                  type="search"
                   placeholder="Search assets..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8"
                 />
               </div>
-              <div className="flex gap-2">
-                <Popover open={showFilters} onOpenChange={setShowFilters}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="gap-1">
-                      <Filter className="h-4 w-4" />
-                      Filters
-                      {hasActiveFilters && (
-                        <Badge className="ml-1 bg-primary text-primary-foreground">
-                          {[
-                            filterStation !== 'All' ? 1 : 0,
-                            filterDepartment !== 'All' ? 1 : 0,
-                            filterEquipment !== 'All' ? 1 : 0,
-                            filterStatus !== 'All' ? 1 : 0,
-                            filterUser !== 'All' ? 1 : 0
-                          ].reduce((a, b) => a + b, 0)}
-                        </Badge>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80">
-                    <div className="space-y-4">
-                      <h4 className="font-medium">Filter Inventory</h4>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Station</label>
-                        <Select value={filterStation} onValueChange={setFilterStation}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select station" />
+              
+              <Popover open={showFilters} onOpenChange={setShowFilters}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="px-3 flex items-center gap-1">
+                    <Filter className="h-4 w-4" />
+                    <span>Filter</span>
+                    {hasActiveFilters && (
+                      <Badge 
+                        variant="secondary" 
+                        className="ml-1 px-1 rounded-full h-5 min-w-5 text-xs"
+                      >
+                        {activeFilterCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-72">
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <h4 className="font-medium leading-none">Filters</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Narrow down assets by attributes
+                      </p>
+                    </div>
+                    <div className="grid gap-2">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <label htmlFor="station" className="text-sm col-span-1">
+                          Station
+                        </label>
+                        <Select
+                  value={filterStation}
+                          onValueChange={setFilterStation}
+                        >
+                          <SelectTrigger id="station" className="col-span-3">
+                            <SelectValue placeholder="All Stations" />
                           </SelectTrigger>
                           <SelectContent>
-                            {stations.map(station => (
+                            {stations.map((station) => (
                               <SelectItem key={station} value={station}>
-                                {station}
+                      {station}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Department</label>
-                        <Select value={filterDepartment} onValueChange={setFilterDepartment}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select department" />
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <label htmlFor="department" className="text-sm col-span-1">
+                          Department
+                        </label>
+                        <Select
+                          value={filterDepartment}
+                          onValueChange={setFilterDepartment}
+                        >
+                          <SelectTrigger id="department" className="col-span-3">
+                            <SelectValue placeholder="All Departments" />
                           </SelectTrigger>
                           <SelectContent>
-                            {departments.map(dept => (
-                              <SelectItem key={dept} value={dept}>
-                                {dept}
+                            {departments.map((department) => (
+                              <SelectItem key={department} value={department}>
+                                {department}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Equipment Type</label>
-                        <Select value={filterEquipment} onValueChange={setFilterEquipment}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select equipment type" />
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <label htmlFor="equipment" className="text-sm col-span-1">
+                          Equipment
+                        </label>
+                        <Select
+                          value={filterEquipment}
+                          onValueChange={setFilterEquipment}
+                        >
+                          <SelectTrigger id="equipment" className="col-span-3">
+                            <SelectValue placeholder="All Equipment" />
                           </SelectTrigger>
                           <SelectContent>
-                            {equipmentTypes.map(type => (
+                            {equipmentTypes.map((type) => (
                               <SelectItem key={type} value={type}>
                                 {type}
                               </SelectItem>
@@ -407,15 +661,19 @@ const Inventory = () => {
                           </SelectContent>
                         </Select>
                       </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Status</label>
-                        <Select value={filterStatus} onValueChange={setFilterStatus}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <label htmlFor="status" className="text-sm col-span-1">
+                          Status
+                        </label>
+                        <Select
+                          value={filterStatus}
+                          onValueChange={setFilterStatus}
+                        >
+                          <SelectTrigger id="status" className="col-span-3">
+                            <SelectValue placeholder="All Statuses" />
                           </SelectTrigger>
                           <SelectContent>
-                            {statusTypes.map(status => (
+                            {statusTypes.map((status) => (
                               <SelectItem key={status} value={status}>
                                 {status}
                               </SelectItem>
@@ -423,15 +681,19 @@ const Inventory = () => {
                           </SelectContent>
                         </Select>
                       </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">User</label>
-                        <Select value={filterUser} onValueChange={setFilterUser}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select user" />
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <label htmlFor="user" className="text-sm col-span-1">
+                          User
+                        </label>
+                        <Select
+                          value={filterUser}
+                          onValueChange={setFilterUser}
+                        >
+                          <SelectTrigger id="user" className="col-span-3">
+                            <SelectValue placeholder="All Users" />
                           </SelectTrigger>
                           <SelectContent>
-                            {users.map(user => (
+                            {users.map((user) => (
                               <SelectItem key={user} value={user}>
                                 {user}
                               </SelectItem>
@@ -439,81 +701,74 @@ const Inventory = () => {
                           </SelectContent>
                         </Select>
                       </div>
-                      
-                      <div className="flex justify-between pt-2">
-                        <Button variant="outline" size="sm" onClick={resetFilters}>
-                          Reset Filters
-                        </Button>
-                        <Button size="sm" onClick={() => setShowFilters(false)}>
-                          Apply Filters
-                        </Button>
-                      </div>
                     </div>
-                  </PopoverContent>
-                </Popover>
-                
-                {hasActiveFilters && (
-                  <Button variant="ghost" size="icon" onClick={resetFilters}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-                
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              {hasActiveFilters && (
+                <Button variant="ghost" size="icon" onClick={resetFilters}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+              
                 <Button variant="outline">Export</Button>
               </div>
             </div>
             
-            {/* Active filters display */}
-            {hasActiveFilters && (
-              <div className="flex flex-wrap gap-2 text-sm mb-4">
-                <span className="text-muted-foreground">Active filters:</span>
-                {filterStation !== 'All' && (
-                  <Badge variant="secondary" className="gap-1">
-                    Station: {filterStation}
-                    <X 
-                      className="h-3 w-3 cursor-pointer" 
-                      onClick={() => setFilterStation('All')} 
-                    />
-                  </Badge>
-                )}
-                {filterDepartment !== 'All' && (
-                  <Badge variant="secondary" className="gap-1">
-                    Department: {filterDepartment}
-                    <X 
-                      className="h-3 w-3 cursor-pointer" 
-                      onClick={() => setFilterDepartment('All')} 
-                    />
-                  </Badge>
-                )}
-                {filterEquipment !== 'All' && (
-                  <Badge variant="secondary" className="gap-1">
-                    Equipment: {filterEquipment}
-                    <X 
-                      className="h-3 w-3 cursor-pointer" 
-                      onClick={() => setFilterEquipment('All')} 
-                    />
-                  </Badge>
-                )}
-                {filterStatus !== 'All' && (
-                  <Badge variant="secondary" className="gap-1">
-                    Status: {filterStatus}
-                    <X 
-                      className="h-3 w-3 cursor-pointer" 
-                      onClick={() => setFilterStatus('All')} 
-                    />
-                  </Badge>
-                )}
-                {filterUser !== 'All' && (
-                  <Badge variant="secondary" className="gap-1">
-                    User: {filterUser}
-                    <X 
-                      className="h-3 w-3 cursor-pointer" 
-                      onClick={() => setFilterUser('All')} 
-                    />
-                  </Badge>
-                )}
-              </div>
-            )}
-            
+          {/* Active filters display */}
+          {hasActiveFilters && (
+            <div className="flex flex-wrap gap-2 text-sm mb-4">
+              <span className="text-muted-foreground">Active filters:</span>
+              {filterStation !== 'All' && (
+                <Badge variant="secondary" className="gap-1">
+                  Station: {filterStation}
+                  <X 
+                    className="h-3 w-3 cursor-pointer" 
+                    onClick={() => setFilterStation('All')} 
+                  />
+                </Badge>
+              )}
+              {filterDepartment !== 'All' && (
+                <Badge variant="secondary" className="gap-1">
+                  Department: {filterDepartment}
+                  <X 
+                    className="h-3 w-3 cursor-pointer" 
+                    onClick={() => setFilterDepartment('All')} 
+                  />
+                </Badge>
+              )}
+              {filterEquipment !== 'All' && (
+                <Badge variant="secondary" className="gap-1">
+                  Equipment: {filterEquipment}
+                  <X 
+                    className="h-3 w-3 cursor-pointer" 
+                    onClick={() => setFilterEquipment('All')} 
+                  />
+                </Badge>
+              )}
+              {filterStatus !== 'All' && (
+                <Badge variant="secondary" className="gap-1">
+                  Status: {filterStatus}
+                  <X 
+                    className="h-3 w-3 cursor-pointer" 
+                    onClick={() => setFilterStatus('All')} 
+                  />
+                </Badge>
+              )}
+              {filterUser !== 'All' && (
+                <Badge variant="secondary" className="gap-1">
+                  User: {filterUser}
+                  <X 
+                    className="h-3 w-3 cursor-pointer" 
+                    onClick={() => setFilterUser('All')} 
+                  />
+                </Badge>
+              )}
+            </div>
+          )}
+          
+          <TabsContent value="list" className="space-y-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle>All Assets</CardTitle>
@@ -556,7 +811,11 @@ const Inventory = () => {
                           </TableRow>
                         ) : (
                           filteredAssets.map((asset) => (
-                            <TableRow key={asset.id}>
+                            <TableRow 
+                              key={asset.id} 
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleRowClick(asset)}
+                            >
                               <TableCell className="font-medium">{asset.serial_no}</TableCell>
                               <TableCell>{asset.department_section}</TableCell>
                               <TableCell>{asset.department}</TableCell>
@@ -573,7 +832,7 @@ const Inventory = () => {
                               <TableCell>{asset.os}</TableCell>
                               <TableCell>{asset.ram}</TableCell>
                               <TableCell>{asset.storage}</TableCell>
-                              <TableCell>{asset.purchase_date}</TableCell>
+                              <TableCell>{formatDate(asset.purchase_date)}</TableCell>
                               <TableCell>
                                 <Badge className={getStatusBadge(asset.status)}>
                                   {asset.status}

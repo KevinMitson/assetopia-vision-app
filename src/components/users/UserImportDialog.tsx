@@ -39,6 +39,19 @@ export function UserImportDialog({ isOpen, onClose, onSuccess }: UserImportDialo
       // Read the file and process the data
       const users = await readExcelFile(file);
       
+      if (users.length === 0) {
+        toast({
+          title: 'No users found',
+          description: 'The file does not contain any valid user data. Please check the file format.',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      // Log the data being imported for debugging
+      console.log('Importing users:', users);
+      
       // Import the users
       const results = await importUsers(users);
 
@@ -48,19 +61,41 @@ export function UserImportDialog({ isOpen, onClose, onSuccess }: UserImportDialo
           description: `Successfully imported ${results.success} users. Failed: ${results.failed}`,
           variant: 'default',
         });
+        
+        if (results.failed > 0) {
+          console.error('Import errors:', results.errors);
+          
+          // Show the first few errors
+          const errorDisplay = results.errors.slice(0, 3).join('\n');
+          if (results.errors.length > 3) {
+            toast({
+              title: `${results.failed} users failed to import`,
+              description: `${errorDisplay}\n...and ${results.errors.length - 3} more errors. Check console for details.`,
+              variant: 'destructive',
+            });
+          } else {
+            toast({
+              title: `${results.failed} users failed to import`,
+              description: errorDisplay,
+              variant: 'destructive',
+            });
+          }
+        }
+        
         onSuccess();
         onClose();
       } else {
         toast({
           title: 'Import failed',
-          description: `Failed to import users: ${results.errors[0]}`,
+          description: `Failed to import users: ${results.errors[0] || 'Unknown error'}`,
           variant: 'destructive',
         });
       }
     } catch (error: any) {
+      console.error('User import error:', error);
       toast({
         title: 'Import failed',
-        description: error.message,
+        description: `Error: ${error.message || 'Unknown error occurred'}`,
         variant: 'destructive',
       });
     } finally {
