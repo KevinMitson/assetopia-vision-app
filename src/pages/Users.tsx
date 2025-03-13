@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UserImportDialog } from '@/components/users/UserImportDialog';
 import { UserAddDialog } from '@/components/users/UserAddDialog';
-import { Download, FileSpreadsheet, Plus, Search, Filter, X } from 'lucide-react';
+import { Download, FileSpreadsheet, Plus, Search, Filter, X, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
   Table,
@@ -39,6 +39,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { fetchAllUsers, debugUserData } from '@/lib/userService';
 import { User } from '@/types';
+import { UserEditDialog } from '@/components/users/UserEditDialog';
+import { UserDeleteDialog } from '@/components/users/UserDeleteDialog';
 
 export default function Users() {
   const [activeTab, setActiveTab] = useState('list');
@@ -56,6 +58,9 @@ export default function Users() {
   const [departments, setDepartments] = useState<string[]>([]);
   const [roles, setRoles] = useState<string[]>([]);
   const { toast } = useToast();
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Fetch users data
   useEffect(() => {
@@ -185,6 +190,18 @@ export default function Users() {
         variant: "destructive",
       });
     }
+  };
+
+  // Handle edit user
+  const handleEditUser = (user: User) => {
+    setSelectedUser(user);
+    setShowEditDialog(true);
+  };
+
+  // Handle delete user
+  const handleDeleteUser = (user: User) => {
+    setSelectedUser(user);
+    setShowDeleteDialog(true);
   };
 
   return (
@@ -397,6 +414,7 @@ export default function Users() {
                         <TableHead>Role</TableHead>
                         <TableHead>Department</TableHead>
                         <TableHead>Station</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -411,6 +429,29 @@ export default function Users() {
                           </TableCell>
                           <TableCell>{user.department}</TableCell>
                           <TableCell>{user.station}</TableCell>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Open menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem 
+                                  onClick={() => handleDeleteUser(user)}
+                                  className="text-red-600"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -523,6 +564,24 @@ export default function Users() {
         onSuccess={fetchUsers}
         stations={stations}
         departments={departments}
+      />
+
+      {/* Edit User Dialog */}
+      <UserEditDialog
+        isOpen={showEditDialog}
+        onClose={() => setShowEditDialog(false)}
+        onSuccess={fetchUsers}
+        stations={stations}
+        departments={departments}
+        user={selectedUser}
+      />
+
+      {/* Delete User Dialog */}
+      <UserDeleteDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onSuccess={fetchUsers}
+        user={selectedUser}
       />
     </div>
   );

@@ -613,4 +613,36 @@ export async function debugUserData() {
     console.error('DEBUG: Error in debugUserData:', error);
     return { success: false, error };
   }
+}
+
+/**
+ * Deletes a user from the system
+ */
+export async function deleteUser(userId: string) {
+  try {
+    // First, delete the user's role assignments
+    const { error: deleteRoleError } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (deleteRoleError) {
+      throw deleteRoleError;
+    }
+    
+    // Then, delete the user from the users table
+    const { error: deleteUserError } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+    
+    if (deleteUserError) {
+      throw deleteUserError;
+    }
+    
+    return { success: true, error: null };
+  } catch (error: any) {
+    console.error('Error deleting user:', error);
+    return { success: false, error: error.message };
+  }
 } 
